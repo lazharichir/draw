@@ -1,0 +1,1 @@
+See https://davidfig.github.io/pixi-viewport/ to implement a viewport in the project.

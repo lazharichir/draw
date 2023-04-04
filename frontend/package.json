@@ -1,0 +1,39 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@pixi/react": "^7.0.3",
+    "@types/lodash.debounce": "^4.0.7",
+    "@types/lodash.isequal": "^4.5.6",
+    "@types/lodash.throttle": "^4.1.7",
+    "@types/lodash.uniqwith": "^4.5.7",
+    "@types/react": "^18.0.28",
+    "@types/react-dom": "^18.0.11",
+    "@vitejs/plugin-react-swc": "^3.0.0",
+    "autoprefixer": "^10.4.14",
+    "jotai": "^2.0.3",
+    "jotai-immer": "^0.2.0",
+    "lodash.debounce": "^4.0.8",
+    "lodash.isequal": "^4.5.0",
+    "lodash.throttle": "^4.1.1",
+    "lodash.uniqwith": "^4.5.0",
+    "pixi-viewport": "^5.0.1",
+    "pixi.js": "^7.2.3",
+    "postcss": "^8.4.21",
+    "tailwindcss": "^3.3.1",
+    "typescript": "^5.0.3",
+    "vite": "^4.2.0",
+    "zustand": "^4.3.7"
+  }
+}
