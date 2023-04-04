@@ -3,12 +3,13 @@ import { Canvas } from "./canvas/Canvas";
 import { Palette } from "./canvas/Palette";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { useResize } from "./hooks/useResize";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { eraserSelectedAtom, paletteColorsAtom, selectedColorAtom } from "./stores/jotai";
 
 // set some global pixi settings
-PIXI.settings.RESOLUTION = window.devicePixelRatio;
+PIXI.settings.RESOLUTION = window.devicePixelRatio || 1;
 PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
+PIXI.settings.ROUND_PIXELS = true;
 
 export const App = () => {
 	const [screenWidth, screenHeight] = useResize();
@@ -19,20 +20,6 @@ export const App = () => {
 	return (
 		<div className="fixed top-0 left-0 w-full h-full">
 			<ErrorBoundary>
-				<div className="fixed top-0 right-0 bg-white w-fit h-full shadow z-50">
-					<Palette
-						choices={colorChoices}
-						value={selectedColor}
-						eraserSelected={eraserSelected}
-						onChange={(newColor) => {
-							setSelectedColor((state) => (state = newColor));
-							setEraserSelected((state) => (state = false));
-						}}
-						onEraserClick={() => {
-							setEraserSelected((state) => (state = !state));
-						}}
-					/>
-				</div>
 				<Canvas
 					screenWidth={screenWidth}
 					screenHeight={screenHeight}
@@ -52,6 +39,20 @@ export const App = () => {
 					}}
 					side={1024}
 				/>
+				<div className="fixed top-0 right-0 bg-white w-fit h-full shadow z-50">
+					<Palette
+						choices={colorChoices}
+						value={selectedColor}
+						eraserSelected={eraserSelected}
+						onChange={(newColor) => {
+							setSelectedColor((state) => (state = newColor));
+							setEraserSelected((state) => (state = false));
+						}}
+						onEraserClick={() => {
+							setEraserSelected((state) => (state = !state));
+						}}
+					/>
+				</div>
 			</ErrorBoundary>
 		</div>
 	);

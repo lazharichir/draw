@@ -13,6 +13,7 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@pixi/filter-outline": "^5.2.0",
     "@pixi/react": "^7.0.3",
     "@types/lodash.debounce": "^4.0.7",
     "@types/lodash.isequal": "^4.5.6",

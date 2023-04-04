@@ -60,9 +60,9 @@ export interface PixiComponentViewportProps extends ViewportProps {
 
 const PixiComponentViewport = PixiComponent("Viewport", {
 	create: (props: PixiComponentViewportProps) => {
-		const { screenWidth, screenHeight, worldWidth, worldHeight } = props;
-		const { ticker } = props.app;
-		const { events } = props.app.renderer;
+		const { screenWidth, screenHeight, worldWidth, worldHeight, app } = props;
+		const { ticker, renderer } = app;
+		const { events } = renderer;
 
 		const clampZoomOptions = props.clampZoomOptions || {};
 

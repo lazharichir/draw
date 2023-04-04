@@ -14,6 +14,6 @@ export const paletteColorsAtom = atomWithImmer<RGBA[]>([
 	{ r: 0, g: 0, b: 0, a: 1 },
 ]);
 
-export const selectedColorAtom = atom<RGBA | null>({ r: 255, g: 255, b: 0, a: 1 });
+export const selectedColorAtom = atom<RGBA | null>({ r: 0, g: 0, b: 0, a: 1 });
 
 export const eraserSelectedAtom = atom(false);

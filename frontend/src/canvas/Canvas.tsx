@@ -1,16 +1,20 @@
 import * as PIXI from "pixi.js";
+import { EventSystem } from "@pixi/events";
 import { Stage, Sprite, Container } from "@pixi/react";
 import { Viewport } from "pixi-viewport";
-import { ViewportClickedEvent, Viewport as ViewportEl } from "./Viewport";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ErasedPixel, PixelDrawn, PixelSnapshot, RGBA, TileData } from "../types";
+import { ViewportClickedEvent, Viewport as ViewportEl } from "./Viewport";
+import { PixelSnapshot, RGBA } from "../types";
 import { retile } from "./retile";
 import { useTilesReducer } from "./useTilesReducer";
 import { useEnhancedReducer } from "../hooks/useEnhancedReducer";
-import { EventSystem } from "@pixi/events";
-import isEqual from "lodash.isequal";
+import { ClientPixelContainer } from "./ClientPixelContainer";
+import { TileContainer } from "./TileContainer";
+import { Grid } from "./Grid";
 
 export interface CanvasProps {
+	worldWidth?: number;
+	worldHeight?: number;
 	screenWidth: number;
 	screenHeight: number;
 	side: number;
@@ -21,104 +25,55 @@ export interface CanvasProps {
 	initialScale?: number;
 }
 
-type Line = {
-	x: number;
-	y: number;
-	w: number;
-	h: number;
-};
+const putPixelRemotely = async (canvasID: number, x: number, y: number, pixelColor: RGBA) => {
+	try {
+		const colr = new PIXI.Color(pixelColor);
+		const [r, g, b] = colr.toUint8RgbArray();
+		const a = Math.round(colr.alpha * 255);
 
-const ClientPixelContainer = (props: { snapshot: PixelSnapshot; backgroundColor: RGBA }) => {
-	const { snapshot, backgroundColor } = props;
-	// console.log(`ClientPixelContainer`, { snapshot, backgroundColor });
-
-	const pixels: JSX.Element[] = useMemo(() => {
-		// console.log(`ClientPixelContainer.useMemo`, { snapshot, backgroundColor });
-		const els: JSX.Element[] = [];
-
-		let k = 0;
-
-		Object.keys(snapshot).forEach((x) => {
-			Object.keys(snapshot[+x]).forEach((y) => {
-				const { color, erased } = snapshot[+x][+y];
-				els.push(
-					<Sprite
-						key={k++}
-						texture={PIXI.Texture.WHITE}
-						position={[+x, +y]}
-						tint={erased ? backgroundColor : color}
-						width={1}
-						height={1}
-					/>
-				);
-			});
+		const res = await fetch(`http://localhost:1001/pixel/${canvasID}/${x}/${y}/${r}/${g}/${b}/${a}`, {
+			method: `PUT`,
+			headers: {
+				"Content-Type": `application/json`,
+			},
 		});
 
-		return els;
-	}, [snapshot, backgroundColor]);
+		console.log(`putPixelRemotely.res`, res.ok, res);
 
-	return <Container>{pixels}</Container>;
+		if (!res.ok) {
+			console.error(`Error putting pixel remotely`, res);
+		}
+	} catch (error) {
+		console.error(`Error putting pixel remotely [catch]`, error);
+	}
 };
 
-const TileContainer = (props: { side: number; tiles: TileData[] }) => {
-	const { side, tiles } = props;
-	return (
-		<Container>
-			{tiles.map((tile: TileData) => (
-				<Sprite
-					key={`${tile.x}x${tile.y}_${tile.anchor}`}
-					image={`http:\/\/localhost:1001/tile/${tile.x}x${tile.y}_${side}.png`}
-					{...tile}
-				/>
-			))}
-		</Container>
-	);
-};
-
-const useSurface = (worldWidth: number, worldHeight: number, brushColor: RGBA) => {
-	const [tileState, dispatch, getTileState] = useEnhancedReducer(useTilesReducer, { tiles: [] });
-	const [[lastPointerX, lastPointerY], setLastPointer] = useState<number[]>([]);
-	const [lastClick, setLastClick] = useState<[number, number] | null>(null);
-	const [snapshot, setSnapshot] = useState<PixelSnapshot>({});
-	const viewportRef = useRef<Viewport>(null);
-
-	const drawPixel = (x: number, y: number, color: RGBA) => {
-		setSnapshot((prev) => ({
-			...prev,
-			[+x]: {
-				...(prev[+x] || {}),
-				[+y]: {
-					at: Date.now(),
-					color: color,
-					erased: false,
-				},
+const erasePixelRemotely = async (canvasID: number, x: number, y: number) => {
+	try {
+		const res = await fetch(`http://localhost:1001/pixel/${canvasID}/${x}/${y}`, {
+			method: `DELETE`,
+			headers: {
+				"Content-Type": `application/json`,
 			},
-		}));
-	};
+		});
 
-	const erasePixel = (x: number, y: number) => {
-		setSnapshot((prev) => ({
-			...prev,
-			[+x]: {
-				...(prev[+x] || {}),
-				[+y]: {
-					at: Date.now(),
-					color: brushColor,
-					erased: true,
-				},
-			},
-		}));
-	};
+		console.log(`erasePixelRemotely.res`, res.ok, res);
 
-	return {
-		drawPixel,
-		erasePixel,
-	};
+		if (!res.ok) {
+			console.error(`Error erasing pixel remotely`, res);
+		} else {
+			console.log(`pixel erased remotely`);
+		}
+	} catch (error) {
+		console.error(`Error erasing pixel remotely [catch]`, error);
+	}
 };
 
 export const Canvas = (props: CanvasProps) => {
 	// the screen size
 	const {
+		worldWidth = 9999999999,
+		worldHeight = 9999999999,
 		screenWidth,
 		screenHeight,
 		backgroundColor,
@@ -126,6 +81,7 @@ export const Canvas = (props: CanvasProps) => {
 		initialScale = 1,
 		eraserSelected = false,
 		currentBrushColor,
+		gridColor = { r: 0, g: 0, b: 0, a: 0.1 },
 	} = props;
 
 	const selectedColor = JSON.parse(JSON.stringify(currentBrushColor)) as RGBA | null;
@@ -135,16 +91,13 @@ export const Canvas = (props: CanvasProps) => {
 
 	// local state
 	const [[lastPointerX, lastPointerY], setLastPointer] = useState<number[]>([]);
-	const [lastClick, setLastClick] = useState<[number, number] | null>(null);
 	const [[centerX, centerY], setLastCenter] = useState<[number, number]>([0, 0]);
+	const [lastClick, setLastClick] = useState<[number, number] | null>(null);
 	const [snapshot, setSnapshot] = useState<PixelSnapshot>({});
 	const [scale, setScale] = useState<number>(initialScale);
 
 	// the viewport ref
 	const viewportRef = useRef<Viewport>(null);
-
-	// the world size
-	const [worldWidth, worldHeight] = [1000000, 1000000];
 
 	const startRetiling = (viewport: Viewport) => {
 		dispatch({
@@ -155,77 +108,8 @@ export const Canvas = (props: CanvasProps) => {
 
 	useEffect(() => {
 		const pieces = [`/canvas`, `/${0}`, `/${scale}`, `/${centerX}`, `/${centerY}`];
-
-		// get current page title
 		window.history.replaceState(null, "New Page Title", pieces.join(``));
 	}, [centerX, centerY, scale]);
-
-	const handleZoomedEnd = (e: { viewport: Viewport }) => {
-		startRetiling(e.viewport);
-		setScale(Math.round(e.viewport.scaled));
-	};
-
-	const handleMoved = (e: { viewport: Viewport }) => {
-		startRetiling(e.viewport);
-		setLastCenter([Math.round(e.viewport.center.x), Math.round(e.viewport.center.y)]);
-	};
-
-	const handlePointerMoved = (e: PIXI.Point) => {
-		setLastPointer([Math.floor(e.x), Math.floor(e.y)]);
-	};
-
-	const handleInit = (e: { viewport: Viewport }) => {
-		startRetiling(e.viewport);
-		e.viewport.moveCenter(0, 0);
-	};
-
-	const putPixelRemotely = async (canvasID: number, x: number, y: number, pixelColor: RGBA) => {
-		try {
-			const colr = new PIXI.Color(pixelColor);
-			const [r, g, b] = colr.toUint8RgbArray();
-			const a = Math.round(colr.alpha * 255);
-
-			const res = await fetch(`http://localhost:1001/pixel/${canvasID}/${x}/${y}/${r}/${g}/${b}/${a}`, {
-				method: `PUT`,
-				headers: {
-					"Content-Type": `application/json`,
-				},
-			});
-
-			console.log(`putPixelRemotely.res`, res.ok, res);
-
-			if (!res.ok) {
-				console.error(`Error putting pixel remotely`, res);
-			}
-		} catch (error) {
-			console.error(`Error putting pixel remotely [catch]`, error);
-		}
-	};
-
-	const erasePixelRemotely = async (canvasID: number, x: number, y: number) => {
-		try {
-			const res = await fetch(`http://localhost:1001/pixel/${canvasID}/${x}/${y}`, {
-				method: `DELETE`,
-				headers: {
-					"Content-Type": `application/json`,
-				},
-			});
-
-			console.log(`erasePixelRemotely.res`, res.ok, res);
-
-			if (!res.ok) {
-				console.error(`Error erasing pixel remotely`, res);
-			} else {
-				console.log(`pixel erased remotely`);
-			}
-		} catch (error) {
-			console.error(`Error erasing pixel remotely [catch]`, error);
-		}
-	};
-
-	const handleClick = (e: ViewportClickedEvent) => {
-		setLastClick([Math.floor(e.world.x), Math.floor(e.world.y)]);
-	};
 
 	useEffect(() => {
 		const wheelListener = (e: WheelEvent) => {
@@ -286,13 +170,36 @@ export const Canvas = (props: CanvasProps) => {
 		}
 	}, [lastClick]);
 
-	const lines = useMemo(() => {
-		const lines: Line[] = [];
-		const thickness = scale < 36 ? 0.03 : 0.02;
+	const handleZoomedEnd = (e: { viewport: Viewport }) => {
+		startRetiling(e.viewport);
+		setScale(Math.round(e.viewport.scaled));
+	};
 
-		if (scale < 16) return lines;
-		if (!viewportRef.current) return lines;
+	const handleMoved = (e: { viewport: Viewport }) => {
+		startRetiling(e.viewport);
+		setLastCenter([Math.round(e.viewport.center.x), Math.round(e.viewport.center.y)]);
+	};
 
+	const handlePointerMoved = (e: PIXI.Point) => {
+		setLastPointer([Math.floor(e.x), Math.floor(e.y)]);
+	};
+
+	const handleInit = (e: { viewport: Viewport }) => {
+		e.viewport.moveCenter(0, 0);
+		startRetiling(e.viewport);
+	};
+
+	const handleClick = (e: ViewportClickedEvent) => {
+		setLastClick([Math.floor(e.world.x), Math.floor(e.world.y)]);
+	};
+
+	const lines: JSX.Element[] = useMemo(() => {
+		const linesEl: JSX.Element[] = [];
+
+		if (scale < 16) return linesEl;
+		if (!viewportRef.current) return linesEl;
+
+		const thickness = scale < 36 ? 0.03 : 0.03;
 		const x = Math.floor(viewportRef.current.corner.x);
 		const y = Math.floor(viewportRef.current.corner.y);
 		const width = viewportRef.current.screenWidth;
@@ -300,25 +207,33 @@ export const Canvas = (props: CanvasProps) => {
 
 		// horizontal lines
 		for (let i = y; i < y + height; i++) {
-			lines.push({
-				x,
-				y: i,
-				w: width,
-				h: thickness,
-			});
+			linesEl.push(
+				<Sprite
+					key={i}
+					texture={PIXI.Texture.WHITE}
+					position={[x, i]}
+					width={width}
+					height={thickness}
+					tint={`#dfdbd9`}
+				/>
+			);
 		}
 
 		// vertical lines
 		for (let i = x; i < x + width; i++) {
-			lines.push({
-				x: i,
-				y,
-				w: thickness,
-				h: height,
-			});
+			linesEl.push(
+				<Sprite
+					key={i}
+					texture={PIXI.Texture.WHITE}
+					position={[i, y]}
+					width={thickness}
+					height={height}
+					tint={`#dfdbd9`}
+				/>
+			);
 		}
 
-		return lines;
+		return linesEl;
 	}, [
 		Math.floor(viewportRef.current?.corner.x || 0),
 		Math.floor(viewportRef.current?.corner.y || 0),
@@ -334,13 +249,14 @@ export const Canvas = (props: CanvasProps) => {
 				height={screenHeight}
 				options={{
 					background: backgroundColor,
-					eventMode: `static`,
 					resolution: window.devicePixelRatio || 1,
-					antialias: true,
 					resizeTo: window,
+					eventMode: `static`,
+					antialias: true,
+					autoStart: true,
 					eventFeatures: {
-						click: true,
 						globalMove: true,
+						click: true,
 						move: true,
 						wheel: true,
 					},
@@ -353,10 +269,10 @@ export const Canvas = (props: CanvasProps) => {
 					worldHeight={worldHeight}
 					screenWidth={screenWidth}
 					screenHeight={screenHeight}
+					onInited={handleInit}
 					onClicked={handleClick}
 					onMoved={handleMoved}
 					onZoomedEnd={handleZoomedEnd}
-					onInited={handleInit}
 					onPointerMoved={handlePointerMoved}
 					clampZoomOptions={{
 						minScale: 1,
@@ -364,16 +280,15 @@ export const Canvas = (props: CanvasProps) => {
 					}}
 				>
 					<Container>
-						{/* <TileContainer /> */}
 						<TileContainer side={side} tiles={tileState.tiles} />
 						<ClientPixelContainer snapshot={snapshot} backgroundColor={backgroundColor} />
 					</Container>
 					<Container>
 						<Sprite
 							texture={PIXI.Texture.WHITE}
+							cursor="crosshair"
 							width={1}
 							height={1}
-							cursor="crosshair"
 							x={lastPointerX}
 							y={lastPointerY}
 							tint={selectedColor || undefined}
@@ -381,31 +296,20 @@ export const Canvas = (props: CanvasProps) => {
 						/>
 						<Sprite
 							texture={PIXI.Texture.WHITE}
+							cursor="crosshair"
 							width={1}
 							height={1}
-							cursor="crosshair"
 							x={lastPointerX}
 							y={lastPointerY}
 							tint={backgroundColor}
 							visible={eraserSelected}
 						/>
 					</Container>
-					{scale > 16 && (
-						<Container>
-							{lines.map((line, i) => (
-								<Sprite
-									key={i}
-									texture={PIXI.Texture.WHITE}
-									position={[line.x, line.y]}
-									width={line.w}
-									height={line.h}
-									tint={`#dfdbd9`}
-									alpha={1}
-								/>
-							))}
-						</Container>
-					)}
+					{scale >= 16 && <Container>{lines}</Container>}
 				</ViewportEl>
+				{/* <Container>
+					<Grid viewport={viewportRef.current} />
+				</Container> */}
 			</Stage>
 		</div>
 	);

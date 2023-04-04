@@ -45,3 +45,10 @@ export type PixelSnapshotItem = {
 	color: RGBA;
 	erased: boolean;
 };
+
+export type Line = {
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+};
