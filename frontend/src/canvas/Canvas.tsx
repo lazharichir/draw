@@ -199,7 +199,7 @@ export const Canvas = (props: CanvasProps) => {
 		if (scale < 16) return linesEl;
 		if (!viewportRef.current) return linesEl;
 
-		const thickness = scale < 36 ? 0.03 : 0.03;
+		const thickness = scale < 40 ? 0.08 : 0.1;
 		const x = Math.floor(viewportRef.current.corner.x);
 		const y = Math.floor(viewportRef.current.corner.y);
 		const width = viewportRef.current.screenWidth;
@@ -214,7 +214,8 @@ export const Canvas = (props: CanvasProps) => {
 					position={[x, i]}
 					width={width}
 					height={thickness}
-					tint={`#dfdbd9`}
+					tint={gridColor}
+					alpha={1}
 				/>
 			);
 		}
@@ -228,7 +229,7 @@ export const Canvas = (props: CanvasProps) => {
 					position={[i, y]}
 					width={thickness}
 					height={height}
-					tint={`#dfdbd9`}
+					tint={gridColor}
 				/>
 			);
 		}
