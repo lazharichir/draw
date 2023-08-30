@@ -10,20 +10,18 @@ type Point struct {
 	Y int64
 }
 
+func NewPixel(x, y int64, c color.Color) Pixel {
+	return Pixel{X: x, Y: y, RGBA: color.RGBAModel.Convert(c).(color.RGBA)}
+}
+
 type Pixel struct {
 	X    int64
 	Y    int64
 	RGBA color.RGBA
 }
 
-func ColorToRGBA(c color.Color) color.RGBA {
-	r, g, b, a := c.RGBA()
-	return color.RGBA{
-		R: uint8(r),
-		G: uint8(g),
-		B: uint8(b),
-		A: uint8(a),
-	}
+func (pixel *Pixel) SetColor(c color.Color) {
+	pixel.RGBA = color.RGBAModel.Convert(c).(color.RGBA)
 }
 
 func NewTile(topLeft Point, width, height int64) Tile {
@@ -51,6 +49,10 @@ func (t Tile) GetMinY() int64 {
 
 func (t Tile) GetMaxY() int64 {
 	return t.TopLeft.Y + t.Height
+}
+
+func (t *Tile) NewPixel(x, y int64, c color.Color) {
+	t.Pixels = append(t.Pixels, NewPixel(x, y, c))
 }
 
 func (t *Tile) AddPixels(pixels ...Pixel) {

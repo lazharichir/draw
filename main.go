@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/jpeg"
 	_ "image/jpeg"
 	"image/png"
 	"io"
@@ -178,20 +179,10 @@ func main() {
 
 		// get the pixels from the image
 		tile := buildTileFromImage(int64(x), int64(y), img)
-		pixelsLen := len(tile.Pixels)
-		fmt.Println("# pixels", pixelsLen)
-
-		chunks := chunkSlice(tile.Pixels, 1000)
-		fmt.Println("# chunks", len(chunks))
-
-		// put the pixels in the database
-		for i, chunk := range chunks {
-			if err := pixelStore.DrawPixels(canvasID, chunk); err != nil {
-				fmt.Println(err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			fmt.Println("progress", i, "/", len(chunks), "chunks")
+		if err := pixelStore.DrawPixels(canvasID, tile.Pixels); err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		// write the image to the response
@@ -216,21 +207,8 @@ func buildTileFromImage(x, y int64, img image.Image) core.Tile {
 
 	for i := int64(0); i < int64(width); i++ {
 		for j := int64(0); j < int64(height); j++ {
-
 			imagePx := img.At(int(i), int(j))
-			r, g, b, a := imagePx.RGBA()
-			pixel := core.Pixel{
-				X: x + i,
-				Y: y + j,
-				RGBA: color.RGBA{
-					R: uint8(r),
-					G: uint8(g),
-					B: uint8(b),
-					A: uint8(a),
-				},
-			}
-
-			tile.AddPixels(pixel)
+			tile.NewPixel(x+i, y+j, imagePx)
 		}
 	}
 
@@ -249,32 +227,15 @@ func loadImageFromURL(URL string) (image.Image, error) {
 		return nil, errors.New("received non 200 response code")
 	}
 
-	img, format, err := image.Decode(response.Body)
-	if err != nil {
-		return nil, err
+	switch response.Header.Get("Content-Type") {
+	case "image/png":
+		return png.Decode(response.Body)
+	case "image/jpeg":
+		return jpeg.Decode(response.Body)
+	case "image/jpg":
+		return jpeg.Decode(response.Body)
+	default:
+		return nil, errors.New("unsupported content type (only jpg and png are supported)")
 	}
 
-	fmt.Println("image format", format)
-
-	return img, nil
-}
-
-func chunkSlice[T any](slice []T, chunkSize int) [][]T {
-	var chunks [][]T
-	for {
-		if len(slice) == 0 {
-			break
-		}
-
-		// necessary check to avoid slicing beyond
-		// slice capacity
-		if len(slice) < chunkSize {
-			chunkSize = len(slice)
-		}
-
-		chunks = append(chunks, slice[0:chunkSize])
-		slice = slice[chunkSize:]
-	}
-
-	return chunks
 }

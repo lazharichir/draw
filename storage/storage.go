@@ -53,26 +53,22 @@ func (store *pgPixelStore) ErasePixel(canvasID int64, x int64, y int64) error {
 // DrawPixelRGBA implements PixelStore
 // It upserts a pixel in the database
 func (store *pgPixelStore) DrawPixelRGBA(canvasID int64, x int64, y int64, color color.RGBA) error {
-
-	sb := sqlbuilder.PostgreSQL.NewInsertBuilder()
-	sb.InsertInto("pixels")
-	sb.Cols("canvas_id", "x", "y", "r", "g", "b", "a", "drawn_at", "drawn_by")
-	sb.Values(canvasID, x, y, color.R, color.G, color.B, color.A, "NOW()", 0)
-	sb.SQL("ON CONFLICT (canvas_id, x, y) DO UPDATE SET r = EXCLUDED.r, g = EXCLUDED.g, b = EXCLUDED.b, a = EXCLUDED.a, drawn_at = EXCLUDED.drawn_at, drawn_by = EXCLUDED.drawn_by")
-
-	query, args := sb.Build()
-
-	_, err := store.db.Exec(query, args...)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return store.DrawPixels(canvasID, []core.Pixel{{X: x, Y: y, RGBA: color}})
 }
 
 // DrawPixelRGBA implements PixelStore
 // It upserts a pixel in the database
 func (store *pgPixelStore) DrawPixels(canvasID int64, pixels []core.Pixel) error {
+	chunks := chunkSlice(pixels, 1000)
+	for _, chunk := range chunks {
+		if err := store.drawPixelChunk(canvasID, chunk); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (store *pgPixelStore) drawPixelChunk(canvasID int64, pixels []core.Pixel) error {
 	sb := sqlbuilder.PostgreSQL.NewInsertBuilder()
 	sb.InsertInto("pixels")
 	sb.Cols("canvas_id", "x", "y", "r", "g", "b", "a", "drawn_at", "drawn_by")
@@ -139,4 +135,24 @@ func NewPG() *sql.DB {
 		panic(err)
 	}
 	return db
+}
+
+func chunkSlice[T any](slice []T, chunkSize int) [][]T {
+	var chunks [][]T
+	for {
+		if len(slice) == 0 {
+			break
+		}
+
+		// necessary check to avoid slicing beyond
+		// slice capacity
+		if len(slice) < chunkSize {
+			chunkSize = len(slice)
+		}
+
+		chunks = append(chunks, slice[0:chunkSize])
+		slice = slice[chunkSize:]
+	}
+
+	return chunks
 }
