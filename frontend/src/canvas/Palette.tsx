@@ -1,5 +1,5 @@
-import { RGBA, RGBADebugStr, RGBAEquals } from "../types";
-import { Color, utils } from "pixi.js";
+import { RGBA, RGBAEquals } from "../types";
+import { Color } from "@pixi/core";
 
 type PaletteProps = {
 	choices: RGBA[];

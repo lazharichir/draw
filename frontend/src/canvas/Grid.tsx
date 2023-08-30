@@ -1,6 +1,6 @@
-import { useCallback } from "react";
-import { Graphics } from "@pixi/react";
-import * as PIXI from "pixi.js";
+import { Graphics as ReactGraphics } from "@pixi/react";
+import { Graphics } from "@pixi/graphics";
+import { Texture } from "@pixi/core";
 import { Viewport } from "pixi-viewport";
 
 interface GridProps {
@@ -12,7 +12,7 @@ interface GridProps {
 export const Grid = ({ viewport }: GridProps) => {
 	if (!viewport) return <></>;
 
-	const draw = (g: PIXI.Graphics) => {
+	const draw = (g: Graphics) => {
 		const side = 1024;
 		const offsetX = 0;
 		const offsetY = 0;
@@ -36,7 +36,7 @@ export const Grid = ({ viewport }: GridProps) => {
 		g.lineStyle({
 			color: `red`,
 			width: 1,
-			texture: PIXI.Texture.WHITE,
+			texture: Texture.WHITE,
 		});
 
 		// draw horizontal lines
@@ -46,5 +46,5 @@ export const Grid = ({ viewport }: GridProps) => {
 		}
 	};
 
-	return <Graphics anchor={0.5} draw={draw} />;
+	return <ReactGraphics anchor={0.5} draw={draw} />;
 };

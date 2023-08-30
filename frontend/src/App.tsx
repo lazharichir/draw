@@ -1,4 +1,6 @@
-import * as PIXI from "pixi.js";
+// import * as PIXI from "pixi.js";
+import { BaseTexture, settings } from "@pixi/core";
+import { SCALE_MODES } from "@pixi/constants";
 import { Canvas } from "./canvas/Canvas";
 import { Palette } from "./canvas/Palette";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -7,9 +9,9 @@ import { useAtom, useAtomValue } from "jotai";
 import { eraserSelectedAtom, paletteColorsAtom, selectedColorAtom } from "./stores/jotai";
 
 // set some global pixi settings
-PIXI.settings.RESOLUTION = window.devicePixelRatio || 1;
-PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
-PIXI.settings.ROUND_PIXELS = true;
+settings.RESOLUTION = window.devicePixelRatio || 1;
+settings.ROUND_PIXELS = true;
+BaseTexture.defaultOptions.scaleMode = SCALE_MODES.NEAREST;
 
 export const App = () => {
 	const [screenWidth, screenHeight] = useResize();

@@ -1,4 +1,4 @@
-import * as PIXI from "pixi.js";
+import { Texture, Point, Color } from "@pixi/core";
 import { EventSystem } from "@pixi/events";
 import { Stage, Sprite, Container } from "@pixi/react";
 import { Viewport } from "pixi-viewport";
@@ -10,7 +10,6 @@ import { useTilesReducer } from "./useTilesReducer";
 import { useEnhancedReducer } from "../hooks/useEnhancedReducer";
 import { ClientPixelContainer } from "./ClientPixelContainer";
 import { TileContainer } from "./TileContainer";
-import { Grid } from "./Grid";
 
 export interface CanvasProps {
 	worldWidth?: number;
@@ -27,7 +26,7 @@ export interface CanvasProps {
 
 const putPixelRemotely = async (canvasID: number, x: number, y: number, pixelColor: RGBA) => {
 	try {
-		const colr = new PIXI.Color(pixelColor);
+		const colr = new Color(pixelColor);
 		const [r, g, b] = colr.toUint8RgbArray();
 		const a = Math.round(colr.alpha * 255);
 
@@ -180,7 +179,7 @@ export const Canvas = (props: CanvasProps) => {
 		setLastCenter([Math.round(e.viewport.center.x), Math.round(e.viewport.center.y)]);
 	};
 
-	const handlePointerMoved = (e: PIXI.Point) => {
+	const handlePointerMoved = (e: Point) => {
 		setLastPointer([Math.floor(e.x), Math.floor(e.y)]);
 	};
 
@@ -209,8 +208,9 @@ export const Canvas = (props: CanvasProps) => {
 		for (let i = y; i < y + height; i++) {
 			linesEl.push(
 				<Sprite
-					key={i}
-					texture={PIXI.Texture.WHITE}
+					// key={i}
+					key={crypto.randomUUID()}
+					texture={Texture.WHITE}
 					position={[x, i]}
 					width={width}
 					height={thickness}
@@ -224,8 +224,9 @@ export const Canvas = (props: CanvasProps) => {
 		for (let i = x; i < x + width; i++) {
 			linesEl.push(
 				<Sprite
-					key={i}
-					texture={PIXI.Texture.WHITE}
+					// key={i}
+					key={crypto.randomUUID()}
+					texture={Texture.WHITE}
 					position={[i, y]}
 					width={thickness}
 					height={height}
@@ -286,7 +287,8 @@ export const Canvas = (props: CanvasProps) => {
 					</Container>
 					<Container>
 						<Sprite
-							texture={PIXI.Texture.WHITE}
+							// texture={Texture.WHITE}
+							texture={Texture.WHITE}
 							cursor="crosshair"
 							width={1}
 							height={1}
@@ -296,7 +298,7 @@ export const Canvas = (props: CanvasProps) => {
 							visible={selectedColor !== null}
 						/>
 						<Sprite
-							texture={PIXI.Texture.WHITE}
+							texture={Texture.WHITE}
 							cursor="crosshair"
 							width={1}
 							height={1}

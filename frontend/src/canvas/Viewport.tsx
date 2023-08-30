@@ -1,12 +1,13 @@
 import React, { forwardRef } from "react";
-import * as PIXI from "pixi.js";
+import { Point } from "@pixi/core";
+import { Application } from "@pixi/app";
 import { PixiComponent, useApp } from "@pixi/react";
 import { IClampZoomOptions, Viewport as PixiViewport } from "pixi-viewport";
 import { EventSystem } from "@pixi/events";
 
 export type ViewportClickedEvent = {
-	screen: PIXI.Point;
-	world: PIXI.Point;
+	screen: Point;
+	world: Point;
 	viewport: PixiViewport;
 };
 
@@ -15,7 +16,7 @@ export type ViewportZoomedEndEvent = {
 };
 
 export type ViewportMovedEvent = {
-	original?: PIXI.Point;
+	original?: Point;
 	viewport: PixiViewport;
 	type:
 		| "wheel"
@@ -48,13 +49,13 @@ export interface ViewportProps {
 	onClicked?: (e: ViewportClickedEvent) => void;
 	onMoved?: (e: ViewportMovedEvent) => void;
 	onInited?: (e: ViewportInitedEvent) => void;
-	onPointerMoved?: (e: PIXI.Point) => void;
+	onPointerMoved?: (e: Point) => void;
 	// plugin options
 	clampZoomOptions?: IClampZoomOptions;
 }
 
 export interface PixiComponentViewportProps extends ViewportProps {
-	app: PIXI.Application;
+	app: Application;
 	clampZoomOptions?: IClampZoomOptions;
 }
 
@@ -76,7 +77,7 @@ const PixiComponentViewport = PixiComponent("Viewport", {
 			screenWidth,
 			worldWidth,
 			worldHeight,
-			ticker,
+			// ticker,
 			events,
 			threshold: 5,
 			// disableOnContextMenu: true,
@@ -149,7 +150,7 @@ export const Viewport = forwardRef<PixiViewport, ViewportProps>((props, ref) => 
 	// Install EventSystem, if not already (PixiJS 6 doesn't add it by default)
 	if (!("events" in app.renderer)) {
 		// @ts-ignore
-		app.renderer.addSystem(PIXI.EventSystem, "events");
+		app.renderer.addSystem(EventSystem, "events");
 	}
 
 	return <PixiComponentViewport ref={ref} app={app} {...props} />;

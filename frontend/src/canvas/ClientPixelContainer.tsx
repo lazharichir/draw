@@ -1,8 +1,7 @@
-import * as PIXI from "pixi.js";
+import { Texture } from "@pixi/core";
 import { useMemo } from "react";
 import { PixelSnapshot, RGBA } from "../types";
 import { Sprite, Container } from "@pixi/react";
-import { OutlineFilter } from "@pixi/filter-outline";
 
 export const ClientPixelContainer = (props: { snapshot: PixelSnapshot; backgroundColor: RGBA }) => {
 	const { snapshot, backgroundColor } = props;
@@ -17,7 +16,7 @@ export const ClientPixelContainer = (props: { snapshot: PixelSnapshot; backgroun
 				els.push(
 					<Sprite
 						key={k++}
-						texture={PIXI.Texture.WHITE}
+						texture={Texture.WHITE}
 						x={+x}
 						y={+y}
 						tint={erased ? backgroundColor : color}
