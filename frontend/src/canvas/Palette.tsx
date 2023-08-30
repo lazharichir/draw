@@ -28,14 +28,15 @@ export const Palette = (props: PaletteProps) => {
 					</li>
 				);
 			})}
-			<li key={`null`}>
+			<li className=" self-end">
 				<button
 					className="block w-14 h-14"
-					style={{ backgroundColor: `#ccc` }}
+					style={{ backgroundColor: `#eee` }}
 					type="button"
 					onClick={onEraserClick}
 				>
 					{eraserSelected && `X`}
+					{!eraserSelected && <img src="/eraser.svg" alt="eraser" className=" block w-full p-3" />}
 				</button>
 			</li>
 		</ul>
