@@ -9,6 +9,8 @@ import { useAtomValue } from "jotai";
 import { paletteColorsAtom } from "./stores/jotai";
 import { useEffect, useState } from "react";
 import { useCanvasReducer } from "./stores/canvas";
+import { erasePixelRemotely, putPixelRemotely } from "./api";
+import { RGBA } from "./types";
 
 // set some global pixi settings
 settings.RESOLUTION = window.devicePixelRatio || 1;
@@ -34,7 +36,6 @@ export const App = () => {
 
 	const [screenWidth, screenHeight] = useResize();
 	const colorChoices = useAtomValue(paletteColorsAtom);
-	const [[x, y, z], setXYZ] = useState([urldata.X, urldata.Y, urldata.Z]);
 
 	const canvasState = useCanvasReducer({
 		canvasId: urldata.CanvasID,
@@ -42,7 +43,12 @@ export const App = () => {
 		screenHeight,
 	});
 
-	useEffect(() => console.log(`canvasState changed: `, canvasState.state), [canvasState.state]);
+	const { currentBrushColor } = canvasState.state;
+	console.log(`rerender: currentBrushColor`, currentBrushColor);
+
+	// useEffect(() => console.log(`pixels updated: `, canvasState.state.pixels), [canvasState.state.pixels]);
+	// useEffect(() => console.log(`state: `, canvasState.state), [canvasState.state]);
+	useEffect(() => console.log(`useEffect currentBrushColor: `, currentBrushColor), [currentBrushColor]);
 
 	useEffect(() => canvasState.setScreenSize(screenWidth, screenHeight), [screenWidth, screenHeight]);
 
@@ -55,7 +61,34 @@ export const App = () => {
 			`/${canvasState.state.center.y}`,
 		];
 		window.history.replaceState(null, "New Page Title", pieces.join(``));
-	}, [canvasState.state.center, canvasState.state.scale]);
+	}, [canvasState.state.canvasId, canvasState.state.center, canvasState.state.scale]);
+
+	const doErasePixel = (x: number, y: number) => {
+		canvasState.setPixels([
+			{
+				x: x,
+				y: y,
+				deleted: true,
+				color: currentBrushColor,
+				at: Date.now(),
+			},
+		]);
+		erasePixelRemotely(canvasState.state.canvasId, x, y);
+	};
+
+	const doDrawPixel = (x: number, y: number, rgba: RGBA) => {
+		console.log(`doDrawPixel`, x, y, rgba, JSON.stringify(rgba));
+		canvasState.setPixels([
+			{
+				x: x,
+				y: y,
+				deleted: false,
+				color: rgba,
+				at: Date.now(),
+			},
+		]);
+		// putPixelRemotely(canvasState.state.canvasId, x, y, currentBrushColor);
+	};
 
 	return (
 		<div className="fixed top-0 left-0 w-full h-full">
@@ -63,9 +96,14 @@ export const App = () => {
 				<div className="fixed top-0 left-0 w-full h-full z-0">
 					<Canvas
 						state={canvasState.state}
-						onClick={(x, y) => canvasState.setLastClick(x, y)}
+						onClick={(x, y) => {
+							if (canvasState.state.eraserSelected) doErasePixel(x, y);
+							else doDrawPixel(x, y, canvasState.state.currentBrushColor);
+							canvasState.setLastClick(x, y);
+						}}
 						onCenterChange={(x, y) => canvasState.setCenter(x, y)}
 						onScaleChange={(w) => canvasState.setScale(w)}
+						onViewportChange={(viewport) => canvasState.retile(viewport)}
 					/>
 				</div>
 				<div className="fixed bottom-0 left-0 w-full h-fit z-50">
@@ -76,13 +114,16 @@ export const App = () => {
 									<img src="/pin.svg" alt="location" className="w-4 h-4" />
 								</div>
 								<div className="text-xs text-black">
-									<span className="text-gray-400">x</span> <strong className="font-bold">{x}</strong>
+									<span className="text-gray-400">x</span>{" "}
+									<strong className="font-bold">{canvasState.state.center.x}</strong>
 								</div>
 								<div className="text-xs text-black">
-									<span className="text-gray-400">y</span> <strong className="font-bold">{y}</strong>
+									<span className="text-gray-400">y</span>{" "}
+									<strong className="font-bold">{canvasState.state.center.y}</strong>
 								</div>
 								<div className="text-xs text-black">
-									<span className="text-gray-400">z</span> <strong className="font-bold">{z}</strong>
+									<span className="text-gray-400">z</span>{" "}
+									<strong className="font-bold">{canvasState.state.scale}</strong>
 								</div>
 							</div>
 						</div>
@@ -100,13 +141,12 @@ export const App = () => {
 				<div className="fixed top-0 right-0 bg-white w-fit h-full shadow z-50">
 					<Palette
 						choices={colorChoices}
-						value={canvasState.state.currentBrushColor}
+						value={currentBrushColor}
 						eraserSelected={canvasState.state.eraserSelected}
 						onChange={(newColor) => {
-							if (newColor) {
-								canvasState.setBrushColor(newColor);
-								canvasState.setEraser(false);
-							}
+							if (!newColor) return;
+							canvasState.setBrushColor(structuredClone(newColor));
+							canvasState.setEraser(false);
 						}}
 						onEraserClick={() => {
 							canvasState.toggleEraser();

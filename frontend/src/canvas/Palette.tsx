@@ -21,7 +21,7 @@ export const Palette = (props: PaletteProps) => {
 							type="button"
 							className="block w-14 h-14"
 							style={{ backgroundColor: color.toRgbaString() }}
-							onClick={() => onChange(choice)}
+							onClick={() => onChange(JSON.parse(JSON.stringify(choice)) as RGBA)}
 						>
 							{RGBAEquals(value || null, choice) && `X`}
 						</button>

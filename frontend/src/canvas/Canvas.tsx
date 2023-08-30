@@ -3,10 +3,7 @@ import { Stage, Sprite, Container } from "@pixi/react";
 import { Viewport } from "pixi-viewport";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ViewportClickedEvent, Viewport as ViewportEl } from "./Viewport";
-import { PixelSnapshot, RGBA, TileData } from "../types";
-import { retile } from "./retile";
-import { useTilesReducer } from "./useTilesReducer";
-import { useEnhancedReducer } from "../hooks/useEnhancedReducer";
+import { PixelSnapshot, RGBA } from "../types";
 import { CanvasState } from "../stores/canvas";
 
 export interface CanvasProps {
@@ -14,81 +11,32 @@ export interface CanvasProps {
 	onClick?: (x: number, y: number) => void;
 	onCenterChange?: (x: number, y: number) => void;
 	onScaleChange?: (scale: number) => void;
+	onViewportChange?: (viewport: Viewport) => void;
 }
-
-const putPixelRemotely = async (canvasID: number, x: number, y: number, pixelColor: RGBA) => {
-	try {
-		const colr = new Color(pixelColor);
-		const [r, g, b] = colr.toUint8RgbArray();
-		const a = Math.round(colr.alpha * 255);
-
-		const res = await fetch(`http://localhost:1001/pixel/${canvasID}/${x}/${y}/${r}/${g}/${b}/${a}`, {
-			method: `PUT`,
-			headers: {
-				"Content-Type": `application/json`,
-			},
-		});
-
-		console.log(`putPixelRemotely.res`, res.ok, res);
-
-		if (!res.ok) {
-			console.error(`Error putting pixel remotely`, res);
-		}
-	} catch (error) {
-		console.error(`Error putting pixel remotely [catch]`, error);
-	}
-};
-
-const erasePixelRemotely = async (canvasID: number, x: number, y: number) => {
-	try {
-		const res = await fetch(`http://localhost:1001/pixel/${canvasID}/${x}/${y}`, {
-			method: `DELETE`,
-			headers: {
-				"Content-Type": `application/json`,
-			},
-		});
-
-		console.log(`erasePixelRemotely.res`, res.ok, res);
-
-		if (!res.ok) {
-			console.error(`Error erasing pixel remotely`, res);
-		} else {
-			console.log(`pixel erased remotely`);
-		}
-	} catch (error) {
-		console.error(`Error erasing pixel remotely [catch]`, error);
-	}
-};
 
 export const Canvas = (props: CanvasProps) => {
 	// the screen size
-	const { state, onClick = () => {}, onCenterChange = () => {}, onScaleChange = () => {} } = props;
+	const {
+		state,
+		onClick = () => {},
+		onCenterChange = () => {},
+		onScaleChange = () => {},
+		onViewportChange = () => {},
+	} = props;
 
 	const { screenWidth, screenHeight } = state;
 	const { side, worldWidth, worldHeight } = state;
 	const { currentBrushColor, eraserSelected } = state;
 	const { backgroundColor, gridColor } = state;
 	const { center, scale } = state;
-	const { lastClick } = state;
 
 	const selectedColor = JSON.parse(JSON.stringify(currentBrushColor)) as RGBA | null;
 
-	// use a reducer for tiles
-	const [tileState, dispatch, getTileState] = useEnhancedReducer(useTilesReducer, { tiles: [] });
-
 	// local state
 	const [[lastPointerX, lastPointerY], setLastPointer] = useState<number[]>([]);
-	const [snapshot, setSnapshot] = useState<PixelSnapshot>({});
 
 	// the viewport ref
 	const viewportRef = useRef<Viewport>(null);
-
-	const startRetiling = (viewport: Viewport) => {
-		dispatch({
-			type: `ADD`,
-			payload: retile(viewport, getTileState().tiles, side),
-		});
-	};
 
 	useEffect(() => {
 		const wheelListener = (e: WheelEvent) => {
@@ -109,53 +57,13 @@ export const Canvas = (props: CanvasProps) => {
 		};
 	}, []);
 
-	// useEffect(() => {
-	// 	if (!lastClick) return;
-	// 	if (!currentBrushColor) return;
-
-	// 	// erase mode
-	// 	if (eraserSelected === true) {
-	// 		console.log(`eraser selected`, ...lastClick);
-	// 		setSnapshot((prev) => ({
-	// 			...prev,
-	// 			[lastClick[0]]: {
-	// 				...(prev[lastClick[0]] || {}),
-	// 				[lastClick[1]]: {
-	// 					at: Date.now(),
-	// 					color: currentBrushColor,
-	// 					erased: true,
-	// 				},
-	// 			},
-	// 		}));
-
-	// 		erasePixelRemotely(0, lastClick[0], lastClick[1]);
-	// 	}
-
-	// 	// draw mode
-	// 	if (eraserSelected === false) {
-	// 		setSnapshot((prev) => ({
-	// 			...prev,
-	// 			[lastClick[0]]: {
-	// 				...(prev[lastClick[0]] || {}),
-	// 				[lastClick[1]]: {
-	// 					at: Date.now(),
-	// 					color: currentBrushColor,
-	// 					erased: false,
-	// 				},
-	// 			},
-	// 		}));
-
-	// 		putPixelRemotely(0, lastClick[0], lastClick[1], currentBrushColor);
-	// 	}
-	// }, [lastClick]);
-
 	const handleZoomedEnd = (e: { viewport: Viewport }) => {
-		startRetiling(e.viewport);
+		onViewportChange(e.viewport);
 		onScaleChange(Math.round(e.viewport.scaled));
 	};
 
 	const handleMoved = (e: { viewport: Viewport }) => {
-		startRetiling(e.viewport);
+		onViewportChange(e.viewport);
 		onCenterChange(Math.round(e.viewport.center.x), Math.round(e.viewport.center.y));
 	};
 
@@ -165,7 +73,7 @@ export const Canvas = (props: CanvasProps) => {
 
 	const handleInit = (e: { viewport: Viewport }) => {
 		e.viewport.moveCenter(center.x, center.y);
-		startRetiling(e.viewport);
+		onViewportChange(e.viewport);
 	};
 
 	const handleClick = (e: ViewportClickedEvent) => {
@@ -225,10 +133,9 @@ export const Canvas = (props: CanvasProps) => {
 	const pixels: JSX.Element[] = useMemo(() => {
 		const els: JSX.Element[] = [];
 		let k = 0;
-
-		Object.keys(snapshot).forEach((x) => {
-			Object.keys(snapshot[+x]).forEach((y) => {
-				const { color, erased } = snapshot[+x][+y];
+		Object.keys(state.pixels).forEach((x) => {
+			Object.keys(state.pixels[+x]).forEach((y) => {
+				const { color, erased } = state.pixels[+x][+y];
 				els.push(
 					<Sprite
 						key={k++}
@@ -245,10 +152,10 @@ export const Canvas = (props: CanvasProps) => {
 		});
 
 		return els;
-	}, [snapshot]);
+	}, [state.pixels]);
 
 	const tiles: JSX.Element[] = useMemo(() => {
-		return tileState.tiles.map((tile: TileData) => {
+		return state.tiles.map((tile) => {
 			return (
 				<Sprite
 					key={`${tile.x}x${tile.y}_${tile.anchor}`}
@@ -257,7 +164,7 @@ export const Canvas = (props: CanvasProps) => {
 				/>
 			);
 		});
-	}, [tileState.tiles]);
+	}, [state.tiles]);
 
 	return (
 		<Stage

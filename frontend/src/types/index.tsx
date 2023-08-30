@@ -4,7 +4,10 @@ export type TileData = {
 	anchor: number;
 };
 
-export const RGBAEquals = (a: RGBA | null, b: RGBA | null) => {
+export const RGBAEquals = (left: RGBA | null, right: RGBA | null) => {
+	let a = JSON.parse(JSON.stringify(left)) as RGBA | null;
+	let b = JSON.parse(JSON.stringify(right)) as RGBA | null;
+
 	if (a !== null && b === null) return false;
 	if (a === null && b !== null) return false;
 	if (a === null && b === null) return true;

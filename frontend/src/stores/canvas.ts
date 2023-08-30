@@ -1,6 +1,8 @@
-import { useReducer } from 'react';
+import { cloneElement, useReducer } from 'react';
 import { PixelSnapshot, PixelSnapshotItem, RGBA, TileData } from "../types"
 import uniqWith from 'lodash.uniqwith';
+import { Viewport } from 'pixi-viewport';
+import { retile } from '../canvas/retile';
 
 export type Point = {
     x: number
@@ -17,7 +19,7 @@ export type CanvasState = {
     gridColor: RGBA
     side: number
     center: Point
-    lastClick: Point
+    lastClick?: Point
     scale: number
     currentBrushColor: RGBA,
     eraserSelected: boolean,
@@ -48,9 +50,21 @@ export type CanvasAction =
     | { type: 'ADD_TILES', tiles: TileData[] }
     | { type: 'SET_PIXELS', pixels: SetPixelData[] }
     | { type: 'SET_LAST_CLICK', x: number, y: number }
+    | { type: 'RETILE', viewport: Viewport }
 
 export const canvasReducer = (state: CanvasState, action: CanvasAction): CanvasState => {
     switch (action.type) {
+        case 'RETILE':
+            return {
+                ...state,
+                tiles: uniqWith(
+                    [
+                        ...state.tiles,
+                        ...retile(action.viewport, state.tiles, state.side),
+                    ],
+                    (a, b) => a.x === b.x && a.y === b.y
+                ),
+            }
         case 'SET_CANVAS_ID':
             return {
                 ...state,
@@ -107,7 +121,7 @@ export const canvasReducer = (state: CanvasState, action: CanvasAction): CanvasS
         case 'SET_BRUSH_COLOR':
             return {
                 ...state,
-                currentBrushColor: action.color
+                currentBrushColor: JSON.parse(JSON.stringify(action.color)) as RGBA
             }
         case 'SET_ERASER':
             return {
@@ -125,21 +139,21 @@ export const canvasReducer = (state: CanvasState, action: CanvasAction): CanvasS
                 tiles: uniqWith([...state.tiles, ...action.tiles], (a, b) => a.x === b.x && a.y === b.y)
             }
         case 'SET_PIXELS':
-            const next = { ...state }
+            let pixels = structuredClone(state.pixels)
             for (const data of action.pixels) {
-                if (next.pixels[data.x] === undefined) {
-                    next.pixels[data.x] = {}
+                if (pixels[data.x] === undefined) {
+                    pixels[data.x] = {}
                 }
-                if (next.pixels[data.x][data.y] === undefined) {
-                    next.pixels[data.x][data.y] = {} as PixelSnapshotItem
+                if (pixels[data.x][data.y] === undefined) {
+                    pixels[data.x][data.y] = {} as PixelSnapshotItem
                 }
-                next.pixels[data.x][data.y] = {
+                pixels[data.x][data.y] = {
                     at: data.at,
                     color: data.color,
                     erased: data.deleted,
                 }
             }
-            return next
+            return { ...state, pixels }
         default:
             return state;
     }
@@ -163,6 +177,7 @@ export const useCanvasReducer = (initialValue: Partial<CanvasState>) => {
         addTiles: (tiles: TileData[]) => dispatch({ type: 'ADD_TILES', tiles }),
         setPixels: (pixels: SetPixelData[]) => dispatch({ type: 'SET_PIXELS', pixels }),
         setLastClick: (x: number, y: number) => dispatch({ type: 'SET_LAST_CLICK', x, y }),
+        retile: (viewport: Viewport) => dispatch({ type: 'RETILE', viewport }),
     };
 }
 
@@ -187,7 +202,7 @@ const initialState: CanvasState = {
     side: 1024,
     scale: 1,
     center: { x: 0, y: 0 },
-    lastClick: { x: 0, y: 0 },
+    lastClick: undefined,
     currentBrushColor: { r: 0, g: 0, b: 0, a: 1 },
     eraserSelected: false,
     tiles: [],
