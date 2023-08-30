@@ -1,6 +1,6 @@
 import { atom } from "jotai";
 import { atomWithImmer } from "jotai-immer";
-import { RGBA } from "../types";
+import { PixelSnapshot, RGBA, TileData } from "../types";
 
 export const paletteColorsAtom = atomWithImmer<RGBA[]>([
 	{ r: 255, g: 0, b: 0, a: 1 },

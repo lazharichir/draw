@@ -7,21 +7,13 @@ import { PixelSnapshot, RGBA, TileData } from "../types";
 import { retile } from "./retile";
 import { useTilesReducer } from "./useTilesReducer";
 import { useEnhancedReducer } from "../hooks/useEnhancedReducer";
+import { CanvasState } from "../stores/canvas";
 
 export interface CanvasProps {
-	worldWidth?: number;
-	worldHeight?: number;
-	screenWidth: number;
-	screenHeight: number;
-	side: number;
-	currentBrushColor: RGBA | null;
-	backgroundColor: RGBA;
-	gridColor: RGBA;
-	eraserSelected: boolean;
-	initialScale?: number;
-	initialX?: number;
-	initialY?: number;
-	onNewXYZ?: (x: number, y: number, z: number) => void;
+	state: CanvasState;
+	onClick?: (x: number, y: number) => void;
+	onCenterChange?: (x: number, y: number) => void;
+	onScaleChange?: (scale: number) => void;
 }
 
 const putPixelRemotely = async (canvasID: number, x: number, y: number, pixelColor: RGBA) => {
@@ -70,21 +62,14 @@ const erasePixelRemotely = async (canvasID: number, x: number, y: number) => {
 
 export const Canvas = (props: CanvasProps) => {
 	// the screen size
-	const {
-		worldWidth = 9999999999,
-		worldHeight = 9999999999,
-		screenWidth,
-		screenHeight,
-		backgroundColor,
-		side,
-		initialScale = 1,
-		eraserSelected = false,
-		currentBrushColor,
-		gridColor = { r: 0, g: 0, b: 0, a: 0.1 },
-		initialX = 0,
-		initialY = 0,
-		onNewXYZ = () => {},
-	} = props;
+	const { state, onClick = () => {}, onCenterChange = () => {}, onScaleChange = () => {} } = props;
+
+	const { screenWidth, screenHeight } = state;
+	const { side, worldWidth, worldHeight } = state;
+	const { currentBrushColor, eraserSelected } = state;
+	const { backgroundColor, gridColor } = state;
+	const { center, scale } = state;
+	const { lastClick } = state;
 
 	const selectedColor = JSON.parse(JSON.stringify(currentBrushColor)) as RGBA | null;
 
@@ -93,10 +78,7 @@ export const Canvas = (props: CanvasProps) => {
 
 	// local state
 	const [[lastPointerX, lastPointerY], setLastPointer] = useState<number[]>([]);
-	const [[centerX, centerY], setLastCenter] = useState<[number, number]>([initialX, initialY]);
-	const [lastClick, setLastClick] = useState<[number, number] | null>(null);
 	const [snapshot, setSnapshot] = useState<PixelSnapshot>({});
-	const [scale, setScale] = useState<number>(initialScale);
 
 	// the viewport ref
 	const viewportRef = useRef<Viewport>(null);
@@ -107,12 +89,6 @@ export const Canvas = (props: CanvasProps) => {
 			payload: retile(viewport, getTileState().tiles, side),
 		});
 	};
-
-	useEffect(() => {
-		onNewXYZ(centerX, centerY, scale);
-		const pieces = [`/canvas`, `/${0}`, `/${scale}`, `/${centerX}`, `/${centerY}`];
-		window.history.replaceState(null, "New Page Title", pieces.join(``));
-	}, [centerX, centerY, scale]);
 
 	useEffect(() => {
 		const wheelListener = (e: WheelEvent) => {
@@ -133,54 +109,54 @@ export const Canvas = (props: CanvasProps) => {
 		};
 	}, []);
 
-	useEffect(() => {
-		if (!lastClick) return;
-		if (!currentBrushColor) return;
+	// useEffect(() => {
+	// 	if (!lastClick) return;
+	// 	if (!currentBrushColor) return;
 
-		// erase mode
-		if (eraserSelected === true) {
-			console.log(`eraser selected`, ...lastClick);
-			setSnapshot((prev) => ({
-				...prev,
-				[lastClick[0]]: {
-					...(prev[lastClick[0]] || {}),
-					[lastClick[1]]: {
-						at: Date.now(),
-						color: currentBrushColor,
-						erased: true,
-					},
-				},
-			}));
+	// 	// erase mode
+	// 	if (eraserSelected === true) {
+	// 		console.log(`eraser selected`, ...lastClick);
+	// 		setSnapshot((prev) => ({
+	// 			...prev,
+	// 			[lastClick[0]]: {
+	// 				...(prev[lastClick[0]] || {}),
+	// 				[lastClick[1]]: {
+	// 					at: Date.now(),
+	// 					color: currentBrushColor,
+	// 					erased: true,
+	// 				},
+	// 			},
+	// 		}));
 
-			erasePixelRemotely(0, lastClick[0], lastClick[1]);
-		}
+	// 		erasePixelRemotely(0, lastClick[0], lastClick[1]);
+	// 	}
 
-		// draw mode
-		if (eraserSelected === false) {
-			setSnapshot((prev) => ({
-				...prev,
-				[lastClick[0]]: {
-					...(prev[lastClick[0]] || {}),
-					[lastClick[1]]: {
-						at: Date.now(),
-						color: currentBrushColor,
-						erased: false,
-					},
-				},
-			}));
+	// 	// draw mode
+	// 	if (eraserSelected === false) {
+	// 		setSnapshot((prev) => ({
+	// 			...prev,
+	// 			[lastClick[0]]: {
+	// 				...(prev[lastClick[0]] || {}),
+	// 				[lastClick[1]]: {
+	// 					at: Date.now(),
+	// 					color: currentBrushColor,
+	// 					erased: false,
+	// 				},
+	// 			},
+	// 		}));
 
-			putPixelRemotely(0, lastClick[0], lastClick[1], currentBrushColor);
-		}
-	}, [lastClick]);
+	// 		putPixelRemotely(0, lastClick[0], lastClick[1], currentBrushColor);
+	// 	}
+	// }, [lastClick]);
 
 	const handleZoomedEnd = (e: { viewport: Viewport }) => {
 		startRetiling(e.viewport);
-		setScale(Math.round(e.viewport.scaled));
+		onScaleChange(Math.round(e.viewport.scaled));
 	};
 
 	const handleMoved = (e: { viewport: Viewport }) => {
 		startRetiling(e.viewport);
-		setLastCenter([Math.round(e.viewport.center.x), Math.round(e.viewport.center.y)]);
+		onCenterChange(Math.round(e.viewport.center.x), Math.round(e.viewport.center.y));
 	};
 
 	const handlePointerMoved = (e: Point) => {
@@ -188,12 +164,12 @@ export const Canvas = (props: CanvasProps) => {
 	};
 
 	const handleInit = (e: { viewport: Viewport }) => {
-		e.viewport.moveCenter(initialX, initialY);
+		e.viewport.moveCenter(center.x, center.y);
 		startRetiling(e.viewport);
 	};
 
 	const handleClick = (e: ViewportClickedEvent) => {
-		setLastClick([Math.floor(e.world.x), Math.floor(e.world.y)]);
+		onClick(Math.floor(e.world.x), Math.floor(e.world.y));
 	};
 
 	const lines: JSX.Element[] = useMemo(() => {
@@ -211,7 +187,6 @@ export const Canvas = (props: CanvasProps) => {
 		for (let i = y; i < y + height; i++) {
 			linesEl.push(
 				<Sprite
-					// key={i}
 					key={crypto.randomUUID()}
 					texture={Texture.WHITE}
 					position={[x, i]}
@@ -227,7 +202,6 @@ export const Canvas = (props: CanvasProps) => {
 		for (let i = x; i < x + width; i++) {
 			linesEl.push(
 				<Sprite
-					// key={i}
 					key={crypto.randomUUID()}
 					texture={Texture.WHITE}
 					position={[i, y]}
@@ -347,7 +321,7 @@ export const Canvas = (props: CanvasProps) => {
 						visible={eraserSelected}
 					/>
 				</Container>
-				{scale >= 16 && <Container>{lines}</Container>}
+				<Container>{lines}</Container>
 			</ViewportEl>
 		</Stage>
 	);
