@@ -21,6 +21,9 @@ export interface CanvasProps {
 	gridColor: RGBA;
 	eraserSelected: boolean;
 	initialScale?: number;
+	initialX?: number;
+	initialY?: number;
+	onNewXYZ?: (x: number, y: number, z: number) => void;
 }
 
 const putPixelRemotely = async (canvasID: number, x: number, y: number, pixelColor: RGBA) => {
@@ -80,6 +83,9 @@ export const Canvas = (props: CanvasProps) => {
 		eraserSelected = false,
 		currentBrushColor,
 		gridColor = { r: 0, g: 0, b: 0, a: 0.1 },
+		initialX = 0,
+		initialY = 0,
+		onNewXYZ = () => {},
 	} = props;
 
 	const selectedColor = JSON.parse(JSON.stringify(currentBrushColor)) as RGBA | null;
@@ -89,7 +95,7 @@ export const Canvas = (props: CanvasProps) => {
 
 	// local state
 	const [[lastPointerX, lastPointerY], setLastPointer] = useState<number[]>([]);
-	const [[centerX, centerY], setLastCenter] = useState<[number, number]>([0, 0]);
+	const [[centerX, centerY], setLastCenter] = useState<[number, number]>([initialX, initialY]);
 	const [lastClick, setLastClick] = useState<[number, number] | null>(null);
 	const [snapshot, setSnapshot] = useState<PixelSnapshot>({});
 	const [scale, setScale] = useState<number>(initialScale);
@@ -105,6 +111,7 @@ export const Canvas = (props: CanvasProps) => {
 	};
 
 	useEffect(() => {
+		onNewXYZ(centerX, centerY, scale);
 		const pieces = [`/canvas`, `/${0}`, `/${scale}`, `/${centerX}`, `/${centerY}`];
 		window.history.replaceState(null, "New Page Title", pieces.join(``));
 	}, [centerX, centerY, scale]);
@@ -183,7 +190,7 @@ export const Canvas = (props: CanvasProps) => {
 	};
 
 	const handleInit = (e: { viewport: Viewport }) => {
-		e.viewport.moveCenter(0, 0);
+		e.viewport.moveCenter(initialX, initialY);
 		startRetiling(e.viewport);
 	};
 
