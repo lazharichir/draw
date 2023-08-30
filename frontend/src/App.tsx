@@ -40,34 +40,49 @@ export const App = () => {
 	return (
 		<div className="fixed top-0 left-0 w-full h-full">
 			<ErrorBoundary>
-				<Canvas
-					screenWidth={screenWidth}
-					screenHeight={screenHeight}
-					currentBrushColor={selectedColor}
-					eraserSelected={eraserSelected}
-					backgroundColor={{
-						r: 255,
-						g: 240,
-						b: 229,
-						a: 1,
-					}}
-					gridColor={{
-						r: 223,
-						g: 219,
-						b: 217,
-						a: 1,
-					}}
-					side={1024}
-					initialScale={z}
-					initialX={x}
-					initialY={y}
-					onNewXYZ={(x, y, w) => setXYZ([x, y, w])}
-				/>
+				<div className="fixed top-0 left-0 w-full h-full z-0">
+					<Canvas
+						screenWidth={screenWidth}
+						screenHeight={screenHeight}
+						currentBrushColor={selectedColor}
+						eraserSelected={eraserSelected}
+						backgroundColor={{
+							r: 255,
+							g: 240,
+							b: 229,
+							a: 1,
+						}}
+						gridColor={{
+							r: 223,
+							g: 219,
+							b: 217,
+							a: 1,
+						}}
+						side={1024}
+						initialScale={z}
+						initialX={x}
+						initialY={y}
+						onNewXYZ={(x, y, w) => setXYZ([x, y, w])}
+					/>
+				</div>
 				<div className="fixed bottom-0 left-0 w-full h-fit shadow z-50">
-					<div className="inline-flex flex-row items-center justify-center px-4 py-5 text-center bg-white m-auto">
-						<div className="text-xs text-gray-500">{x}</div>,
-						<div className="text-xs text-gray-500">{y}</div>,
-						<div className="text-xs text-gray-500">{z}</div>
+					<div className="p-4 flex items-center justify-center">
+						<div className="inline-flex flex-row items-center justify-center px-4 py-3 text-center bg-white m-auto gap-3 rounded-lg shadow-md">
+							<div className="">
+								<a href="/canvas/0/1/0/0">
+									<img src="/pin.svg" alt="location" className="w-4 h-4" />
+								</a>
+							</div>
+							<div className="text-xs text-black">
+								<span className="text-gray-400">x</span> <strong className="font-bold">{x}</strong>
+							</div>
+							<div className="text-xs text-black">
+								<span className="text-gray-400">y</span> <strong className="font-bold">{y}</strong>
+							</div>
+							<div className="text-xs text-black">
+								<span className="text-gray-400">z</span> <strong className="font-bold">{z}</strong>
+							</div>
+						</div>
 					</div>
 				</div>
 				<div className="fixed top-0 right-0 bg-white w-fit h-full shadow z-50">

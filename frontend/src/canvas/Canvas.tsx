@@ -3,12 +3,10 @@ import { Stage, Sprite, Container } from "@pixi/react";
 import { Viewport } from "pixi-viewport";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ViewportClickedEvent, Viewport as ViewportEl } from "./Viewport";
-import { PixelSnapshot, RGBA } from "../types";
+import { PixelSnapshot, RGBA, TileData } from "../types";
 import { retile } from "./retile";
 import { useTilesReducer } from "./useTilesReducer";
 import { useEnhancedReducer } from "../hooks/useEnhancedReducer";
-import { ClientPixelContainer } from "./ClientPixelContainer";
-import { TileContainer } from "./TileContainer";
 
 export interface CanvasProps {
 	worldWidth?: number;
@@ -200,7 +198,6 @@ export const Canvas = (props: CanvasProps) => {
 
 	const lines: JSX.Element[] = useMemo(() => {
 		const linesEl: JSX.Element[] = [];
-
 		if (scale < 16) return linesEl;
 		if (!viewportRef.current) return linesEl;
 
@@ -221,7 +218,7 @@ export const Canvas = (props: CanvasProps) => {
 					width={width}
 					height={thickness}
 					tint={gridColor}
-					alpha={1}
+					alpha={gridColor.a}
 				/>
 			);
 		}
@@ -237,6 +234,7 @@ export const Canvas = (props: CanvasProps) => {
 					width={thickness}
 					height={height}
 					tint={gridColor}
+					alpha={gridColor.a}
 				/>
 			);
 		}
@@ -250,76 +248,107 @@ export const Canvas = (props: CanvasProps) => {
 		scale,
 	]);
 
+	const pixels: JSX.Element[] = useMemo(() => {
+		const els: JSX.Element[] = [];
+		let k = 0;
+
+		Object.keys(snapshot).forEach((x) => {
+			Object.keys(snapshot[+x]).forEach((y) => {
+				const { color, erased } = snapshot[+x][+y];
+				els.push(
+					<Sprite
+						key={k++}
+						texture={Texture.WHITE}
+						x={+x}
+						y={+y}
+						tint={erased ? backgroundColor : color}
+						width={1}
+						height={1}
+						anchor={0}
+					/>
+				);
+			});
+		});
+
+		return els;
+	}, [snapshot]);
+
+	const tiles: JSX.Element[] = useMemo(() => {
+		return tileState.tiles.map((tile: TileData) => {
+			return (
+				<Sprite
+					key={`${tile.x}x${tile.y}_${tile.anchor}`}
+					image={`http:\/\/localhost:1001/tile/${tile.x}x${tile.y}_${side}.png`}
+					{...tile}
+				/>
+			);
+		});
+	}, [tileState.tiles]);
+
 	return (
-		<div className="fixed top-0 left-0 w-full h-full z-0">
-			<Stage
-				width={screenWidth}
-				height={screenHeight}
-				options={{
-					background: backgroundColor,
-					resolution: window.devicePixelRatio || 1,
-					resizeTo: window,
-					eventMode: `static`,
-					antialias: true,
-					autoStart: true,
-					eventFeatures: {
-						globalMove: true,
-						click: true,
-						move: true,
-						wheel: true,
-					},
-					autoDensity: true,
+		<Stage
+			width={screenWidth}
+			height={screenHeight}
+			options={{
+				background: backgroundColor,
+				resolution: window.devicePixelRatio || 1,
+				resizeTo: window,
+				eventMode: `static`,
+				antialias: true,
+				autoStart: true,
+				eventFeatures: {
+					globalMove: true,
+					click: true,
+					move: true,
+					wheel: true,
+				},
+				autoDensity: true,
+			}}
+		>
+			<ViewportEl
+				ref={viewportRef}
+				worldWidth={worldWidth}
+				worldHeight={worldHeight}
+				screenWidth={screenWidth}
+				screenHeight={screenHeight}
+				onInited={handleInit}
+				onClicked={handleClick}
+				onMoved={handleMoved}
+				onZoomedEnd={handleZoomedEnd}
+				onPointerMoved={handlePointerMoved}
+				clampZoomOptions={{
+					minScale: 1,
+					maxScale: 70,
 				}}
 			>
-				<ViewportEl
-					ref={viewportRef}
-					worldWidth={worldWidth}
-					worldHeight={worldHeight}
-					screenWidth={screenWidth}
-					screenHeight={screenHeight}
-					onInited={handleInit}
-					onClicked={handleClick}
-					onMoved={handleMoved}
-					onZoomedEnd={handleZoomedEnd}
-					onPointerMoved={handlePointerMoved}
-					clampZoomOptions={{
-						minScale: 1,
-						maxScale: 70,
-					}}
-				>
-					<Container>
-						<TileContainer side={side} tiles={tileState.tiles} />
-						<ClientPixelContainer snapshot={snapshot} backgroundColor={backgroundColor} />
-					</Container>
-					<Container>
-						<Sprite
-							// texture={Texture.WHITE}
-							texture={Texture.WHITE}
-							cursor="crosshair"
-							width={1}
-							height={1}
-							x={lastPointerX}
-							y={lastPointerY}
-							tint={selectedColor || undefined}
-							visible={selectedColor !== null}
-						/>
-						<Sprite
-							texture={Texture.WHITE}
-							cursor="crosshair"
-							width={1}
-							height={1}
-							x={lastPointerX}
-							y={lastPointerY}
-							tint={backgroundColor}
-							visible={eraserSelected}
-						/>
-					</Container>
-					{scale >= 16 && <Container>{lines}</Container>}
-				</ViewportEl>
-				{/* <Container>
-					<Grid viewport={viewportRef.current} />
-				</Container> */}
-			</Stage>
-		</div>
+				<Container>
+					<Container>{tiles}</Container>
+					<Container>{pixels}</Container>
+				</Container>
+				<Container>
+					<Sprite
+						texture={Texture.WHITE}
+						cursor="crosshair"
+						width={1}
+						height={1}
+						x={lastPointerX}
+						y={lastPointerY}
+						tint={selectedColor || undefined}
+						visible={selectedColor !== null}
+					/>
+					<Sprite
+						texture={Texture.WHITE}
+						cursor="crosshair"
+						width={1}
+						height={1}
+						x={lastPointerX}
+						y={lastPointerY}
+						tint={backgroundColor}
+						visible={eraserSelected}
+					/>
+				</Container>
+				{scale >= 16 && <Container>{lines}</Container>}
+			</ViewportEl>
+		</Stage>
 	);
 };
