@@ -13,6 +13,7 @@ import (
 type PixelStore interface {
 	GetPixelsFromTopLeft(canvasID, x, y, z int64) ([]core.Pixel, error)
 	DrawPixelRGBA(canvasID, x, y int64, color color.RGBA) error
+	DrawPixels(canvasID int64, pixels []core.Pixel) error
 	ErasePixel(canvasID, x, y int64) error
 }
 
@@ -57,6 +58,29 @@ func (store *pgPixelStore) DrawPixelRGBA(canvasID int64, x int64, y int64, color
 	sb.InsertInto("pixels")
 	sb.Cols("canvas_id", "x", "y", "r", "g", "b", "a", "drawn_at", "drawn_by")
 	sb.Values(canvasID, x, y, color.R, color.G, color.B, color.A, "NOW()", 0)
+	sb.SQL("ON CONFLICT (canvas_id, x, y) DO UPDATE SET r = EXCLUDED.r, g = EXCLUDED.g, b = EXCLUDED.b, a = EXCLUDED.a, drawn_at = EXCLUDED.drawn_at, drawn_by = EXCLUDED.drawn_by")
+
+	query, args := sb.Build()
+
+	_, err := store.db.Exec(query, args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DrawPixelRGBA implements PixelStore
+// It upserts a pixel in the database
+func (store *pgPixelStore) DrawPixels(canvasID int64, pixels []core.Pixel) error {
+	sb := sqlbuilder.PostgreSQL.NewInsertBuilder()
+	sb.InsertInto("pixels")
+	sb.Cols("canvas_id", "x", "y", "r", "g", "b", "a", "drawn_at", "drawn_by")
+
+	for _, pixel := range pixels {
+		sb.Values(canvasID, pixel.X, pixel.Y, pixel.RGBA.R, pixel.RGBA.G, pixel.RGBA.B, pixel.RGBA.A, "NOW()", 0)
+	}
+
 	sb.SQL("ON CONFLICT (canvas_id, x, y) DO UPDATE SET r = EXCLUDED.r, g = EXCLUDED.g, b = EXCLUDED.b, a = EXCLUDED.a, drawn_at = EXCLUDED.drawn_at, drawn_by = EXCLUDED.drawn_by")
 
 	query, args := sb.Build()

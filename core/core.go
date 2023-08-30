@@ -16,6 +16,16 @@ type Pixel struct {
 	RGBA color.RGBA
 }
 
+func ColorToRGBA(c color.Color) color.RGBA {
+	r, g, b, a := c.RGBA()
+	return color.RGBA{
+		R: uint8(r),
+		G: uint8(g),
+		B: uint8(b),
+		A: uint8(a),
+	}
+}
+
 func NewTile(topLeft Point, width, height int64) Tile {
 	return Tile{TopLeft: topLeft, Width: width, Height: height, Pixels: []Pixel{}}
 }

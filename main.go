@@ -2,8 +2,11 @@ package main
 
 import (
 	"compress/gzip"
+	"errors"
 	"fmt"
+	"image"
 	"image/color"
+	_ "image/jpeg"
 	"image/png"
 	"io"
 	"net/http"
@@ -17,18 +20,28 @@ import (
 	"github.com/lazharichir/draw/storage"
 )
 
-func chiURLParamInt64(r *http.Request, key string) int64 {
-	str := chi.URLParam(r, key)
-	if len(str) == 0 {
-		return 0
-	}
-
+func strToInt64(str string) int64 {
 	val, err := strconv.ParseInt(str, 10, 64)
 	if err != nil {
 		return 0
 	}
-
 	return val
+}
+
+func chiURLQueryInt64(r *http.Request, key string) int64 {
+	str := r.URL.Query().Get(key)
+	if len(str) == 0 {
+		return -1
+	}
+	return strToInt64(str)
+}
+
+func chiURLParamInt64(r *http.Request, key string) int64 {
+	str := chi.URLParam(r, key)
+	if len(str) == 0 {
+		return -1
+	}
+	return strToInt64(str)
 }
 
 // Gzip Compression
@@ -146,6 +159,122 @@ func main() {
 		}
 	})
 
+	// get a tile (e.g., http://localhost:1001/image?cid=0&x=-1000&y=-1000&src=https://freshman.tech/images/dp-illustration.png)
+	r.Get("/image", func(w http.ResponseWriter, r *http.Request) {
+		canvasID := chiURLQueryInt64(r, "cid")
+		x := chiURLQueryInt64(r, "x")
+		y := chiURLQueryInt64(r, "y")
+		src := r.URL.Query().Get("src")
+		fmt.Println("GET /image", canvasID, x, y, src)
+
+		img, err := loadImageFromURL(src)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Println("image size", img.Bounds().Max.X, img.Bounds().Max.Y)
+
+		// get the pixels from the image
+		tile := buildTileFromImage(int64(x), int64(y), img)
+		pixelsLen := len(tile.Pixels)
+		fmt.Println("# pixels", pixelsLen)
+
+		chunks := chunkSlice(tile.Pixels, 1000)
+		fmt.Println("# chunks", len(chunks))
+
+		// put the pixels in the database
+		for i, chunk := range chunks {
+			if err := pixelStore.DrawPixels(canvasID, chunk); err != nil {
+				fmt.Println(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			fmt.Println("progress", i, "/", len(chunks), "chunks")
+		}
+
+		// write the image to the response
+		w.Header().Set("Content-Type", "image/png")
+		encoder := png.Encoder{}
+		encoder.CompressionLevel = png.NoCompression
+		if err := encoder.Encode(w, img); err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	})
+
 	// start the server
 	http.ListenAndServe(":1001", r)
+}
+
+func buildTileFromImage(x, y int64, img image.Image) core.Tile {
+	width := img.Bounds().Max.X
+	height := img.Bounds().Max.Y
+	tile := core.NewTile(core.Point{X: x, Y: y}, int64(width), int64(height))
+
+	for i := int64(0); i < int64(width); i++ {
+		for j := int64(0); j < int64(height); j++ {
+
+			imagePx := img.At(int(i), int(j))
+			r, g, b, a := imagePx.RGBA()
+			pixel := core.Pixel{
+				X: x + i,
+				Y: y + j,
+				RGBA: color.RGBA{
+					R: uint8(r),
+					G: uint8(g),
+					B: uint8(b),
+					A: uint8(a),
+				},
+			}
+
+			tile.AddPixels(pixel)
+		}
+	}
+
+	return tile
+}
+
+func loadImageFromURL(URL string) (image.Image, error) {
+	//Get the response bytes from the url
+	response, err := http.Get(URL)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != 200 {
+		return nil, errors.New("received non 200 response code")
+	}
+
+	img, format, err := image.Decode(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("image format", format)
+
+	return img, nil
+}
+
+func chunkSlice[T any](slice []T, chunkSize int) [][]T {
+	var chunks [][]T
+	for {
+		if len(slice) == 0 {
+			break
+		}
+
+		// necessary check to avoid slicing beyond
+		// slice capacity
+		if len(slice) < chunkSize {
+			chunkSize = len(slice)
+		}
+
+		chunks = append(chunks, slice[0:chunkSize])
+		slice = slice[chunkSize:]
+	}
+
+	return chunks
 }

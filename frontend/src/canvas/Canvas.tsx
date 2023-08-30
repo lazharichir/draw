@@ -1,5 +1,4 @@
 import { Texture, Point, Color } from "@pixi/core";
-import { EventSystem } from "@pixi/events";
 import { Stage, Sprite, Container } from "@pixi/react";
 import { Viewport } from "pixi-viewport";
 import { useEffect, useMemo, useRef, useState } from "react";
