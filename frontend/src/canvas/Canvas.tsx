@@ -72,6 +72,7 @@ export const Canvas = (props: CanvasProps) => {
 	};
 
 	const handleInit = (e: { viewport: Viewport }) => {
+		e.viewport.scale.set(scale);
 		e.viewport.moveCenter(center.x, center.y);
 		onViewportChange(e.viewport);
 	};

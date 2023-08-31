@@ -1,4 +1,3 @@
-// import * as PIXI from "pixi.js";
 import { BaseTexture, settings } from "@pixi/core";
 import { SCALE_MODES } from "@pixi/constants";
 import { Canvas } from "./canvas/Canvas";
@@ -7,10 +6,9 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { useResize } from "./hooks/useResize";
 import { useAtomValue } from "jotai";
 import { paletteColorsAtom } from "./stores/jotai";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useCanvasReducer } from "./stores/canvas";
 import { erasePixelRemotely, putPixelRemotely } from "./api";
-import { RGBA } from "./types";
 
 // set some global pixi settings
 settings.RESOLUTION = window.devicePixelRatio || 1;
@@ -41,14 +39,14 @@ export const App = () => {
 		canvasId: urldata.CanvasID,
 		screenWidth,
 		screenHeight,
+		scale: urldata.Z,
+		center: {
+			x: urldata.X,
+			y: urldata.Y,
+		},
 	});
 
 	const { currentBrushColor } = canvasState.state;
-	console.log(`rerender: currentBrushColor`, currentBrushColor);
-
-	// useEffect(() => console.log(`pixels updated: `, canvasState.state.pixels), [canvasState.state.pixels]);
-	// useEffect(() => console.log(`state: `, canvasState.state), [canvasState.state]);
-	useEffect(() => console.log(`useEffect currentBrushColor: `, currentBrushColor), [currentBrushColor]);
 
 	useEffect(() => canvasState.setScreenSize(screenWidth, screenHeight), [screenWidth, screenHeight]);
 
@@ -63,6 +61,15 @@ export const App = () => {
 		window.history.replaceState(null, "New Page Title", pieces.join(``));
 	}, [canvasState.state.canvasId, canvasState.state.center, canvasState.state.scale]);
 
+	useEffect(() => {
+		if (!canvasState.state.lastClick) return;
+		if (canvasState.state.eraserSelected) {
+			doErasePixel(canvasState.state.lastClick.x, canvasState.state.lastClick.y);
+		} else {
+			doDrawPixel(canvasState.state.lastClick.x, canvasState.state.lastClick.y);
+		}
+	}, [canvasState.state.lastClick]);
+
 	const doErasePixel = (x: number, y: number) => {
 		canvasState.setPixels([
 			{
@@ -76,18 +83,17 @@ export const App = () => {
 		erasePixelRemotely(canvasState.state.canvasId, x, y);
 	};
 
-	const doDrawPixel = (x: number, y: number, rgba: RGBA) => {
-		console.log(`doDrawPixel`, x, y, rgba, JSON.stringify(rgba));
+	const doDrawPixel = (x: number, y: number) => {
 		canvasState.setPixels([
 			{
 				x: x,
 				y: y,
 				deleted: false,
-				color: rgba,
+				color: currentBrushColor,
 				at: Date.now(),
 			},
 		]);
-		// putPixelRemotely(canvasState.state.canvasId, x, y, currentBrushColor);
+		putPixelRemotely(canvasState.state.canvasId, x, y, currentBrushColor);
 	};
 
 	return (
@@ -96,11 +102,7 @@ export const App = () => {
 				<div className="fixed top-0 left-0 w-full h-full z-0">
 					<Canvas
 						state={canvasState.state}
-						onClick={(x, y) => {
-							if (canvasState.state.eraserSelected) doErasePixel(x, y);
-							else doDrawPixel(x, y, canvasState.state.currentBrushColor);
-							canvasState.setLastClick(x, y);
-						}}
+						onClick={(x, y) => canvasState.setLastClick(x, y)}
 						onCenterChange={(x, y) => canvasState.setCenter(x, y)}
 						onScaleChange={(w) => canvasState.setScale(w)}
 						onViewportChange={(viewport) => canvasState.retile(viewport)}
