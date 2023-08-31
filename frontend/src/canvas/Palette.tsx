@@ -23,7 +23,7 @@ export const Palette = (props: PaletteProps) => {
 							style={{ backgroundColor: color.toRgbaString() }}
 							onClick={() => onChange(JSON.parse(JSON.stringify(choice)) as RGBA)}
 						>
-							{RGBAEquals(value || null, choice) && `X`}
+							{!eraserSelected && RGBAEquals(value || null, choice) && `X`}
 						</button>
 					</li>
 				);

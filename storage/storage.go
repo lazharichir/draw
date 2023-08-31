@@ -2,7 +2,9 @@ package storage
 
 import (
 	"database/sql"
+	"fmt"
 	"image/color"
+	"time"
 
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/lazharichir/draw/core"
@@ -11,6 +13,7 @@ import (
 )
 
 type PixelStore interface {
+	GetLatestPixelsForArea(canvasID int64, topLeft core.Point, bottomRight core.Point, after time.Time) ([]core.Pixel, error)
 	GetPixelsFromTopLeft(canvasID, x, y, z int64) ([]core.Pixel, error)
 	DrawPixelRGBA(canvasID, x, y int64, color color.RGBA) error
 	DrawPixels(canvasID int64, pixels []core.Pixel) error
@@ -87,6 +90,43 @@ func (store *pgPixelStore) drawPixelChunk(canvasID int64, pixels []core.Pixel) e
 	}
 
 	return nil
+}
+
+// GetPixels implements PixelStore
+func (store *pgPixelStore) GetLatestPixelsForArea(canvasID int64, topLeft core.Point, bottomRight core.Point, after time.Time) ([]core.Pixel, error) {
+	sb := sqlbuilder.PostgreSQL.NewSelectBuilder()
+	sb.Select("x", "y", "r", "g", "b", "a")
+	sb.From("pixels")
+	sb.Where(
+		sb.And(
+			sb.Equal("canvas_id", canvasID),
+			sb.Between("x", topLeft.X, bottomRight.X),
+			sb.Between("y", topLeft.Y, bottomRight.Y),
+			sb.GreaterThan("drawn_at", after),
+		),
+	)
+
+	query, args := sb.Build()
+	fmt.Println(`query`, query)
+	fmt.Printf("args %+#v \n", args)
+
+	rows, err := store.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	var pixels []core.Pixel
+
+	for rows.Next() {
+		var pixel core.Pixel
+		err := rows.Scan(&pixel.X, &pixel.Y, &pixel.RGBA.R, &pixel.RGBA.G, &pixel.RGBA.B, &pixel.RGBA.A)
+		if err != nil {
+			return nil, err
+		}
+		pixels = append(pixels, pixel)
+	}
+
+	return pixels, nil
 }
 
 // GetPixels implements PixelStore

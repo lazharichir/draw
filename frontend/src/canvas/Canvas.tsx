@@ -1,42 +1,55 @@
-import { Texture, Point, Color } from "@pixi/core";
+import { Texture, Point } from "@pixi/core";
 import { Stage, Sprite, Container } from "@pixi/react";
 import { Viewport } from "pixi-viewport";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { ViewportClickedEvent, Viewport as ViewportEl } from "./Viewport";
-import { PixelSnapshot, RGBA } from "../types";
-import { CanvasState } from "../stores/canvas";
+import { RGBA } from "../types";
+import { CanvasState } from "../stores/canvas.store";
+import { InstrumentState } from "../stores/instruments.store";
 
 export interface CanvasProps {
 	state: CanvasState;
+	instruments: InstrumentState;
 	onClick?: (x: number, y: number) => void;
 	onCenterChange?: (x: number, y: number) => void;
 	onScaleChange?: (scale: number) => void;
 	onViewportChange?: (viewport: Viewport) => void;
+	onViewportRefInit?: (viewport: RefObject<Viewport>) => void;
 }
 
 export const Canvas = (props: CanvasProps) => {
 	// the screen size
 	const {
 		state,
+		instruments,
 		onClick = () => {},
 		onCenterChange = () => {},
 		onScaleChange = () => {},
 		onViewportChange = () => {},
+		onViewportRefInit = () => {},
 	} = props;
 
 	const { screenWidth, screenHeight } = state;
 	const { side, worldWidth, worldHeight } = state;
-	const { currentBrushColor, eraserSelected } = state;
+	const { brushColor, mode } = instruments;
 	const { backgroundColor, gridColor } = state;
 	const { center, scale } = state;
 
-	const selectedColor = JSON.parse(JSON.stringify(currentBrushColor)) as RGBA | null;
+	const selectedColor = JSON.parse(JSON.stringify(brushColor)) as RGBA | null;
 
 	// local state
 	const [[lastPointerX, lastPointerY], setLastPointer] = useState<number[]>([]);
 
 	// the viewport ref
 	const viewportRef = useRef<Viewport>(null);
+
+	useEffect(() => onViewportRefInit(viewportRef), [!!viewportRef.current]);
+
+	useEffect(() => {
+		if (!viewportRef.current) return;
+		// if (viewportRef.current.x === state.center.x && viewportRef.current.y === state.center.y) return;
+		// viewportRef.current.moveCenter(center.x, center.y);
+	}, [state.center]);
 
 	useEffect(() => {
 		const wheelListener = (e: WheelEvent) => {
@@ -86,7 +99,8 @@ export const Canvas = (props: CanvasProps) => {
 		if (scale < 16) return linesEl;
 		if (!viewportRef.current) return linesEl;
 
-		const thickness = scale < 40 ? 0.08 : 0.1;
+		const anchor = 0.5;
+		const thickness = scale < 40 ? 0.1 : 0.15;
 		const x = Math.floor(viewportRef.current.corner.x);
 		const y = Math.floor(viewportRef.current.corner.y);
 		const width = viewportRef.current.screenWidth;
@@ -96,9 +110,11 @@ export const Canvas = (props: CanvasProps) => {
 		for (let i = y; i < y + height; i++) {
 			linesEl.push(
 				<Sprite
+					cursor="crosshair"
 					key={crypto.randomUUID()}
 					texture={Texture.WHITE}
 					position={[x, i]}
+					anchor={anchor}
 					width={width}
 					height={thickness}
 					tint={gridColor}
@@ -111,10 +127,12 @@ export const Canvas = (props: CanvasProps) => {
 		for (let i = x; i < x + width; i++) {
 			linesEl.push(
 				<Sprite
+					cursor="crosshair"
 					key={crypto.randomUUID()}
 					texture={Texture.WHITE}
 					position={[i, y]}
 					width={thickness}
+					anchor={anchor}
 					height={height}
 					tint={gridColor}
 					alpha={gridColor.a}
@@ -134,11 +152,15 @@ export const Canvas = (props: CanvasProps) => {
 	const pixels: JSX.Element[] = useMemo(() => {
 		const els: JSX.Element[] = [];
 		let k = 0;
-		Object.keys(state.pixels).forEach((x) => {
-			Object.keys(state.pixels[+x]).forEach((y) => {
-				const { color, erased } = state.pixels[+x][+y];
+		Object.keys(state.pixels || {}).forEach((x) => {
+			Object.keys(state.pixels[+x] || {}).forEach((y) => {
+				const log = state.pixels[+x][+y];
+				if (!log.length) return;
+
+				const { color, erased } = log[0];
 				els.push(
 					<Sprite
+						cursor="crosshair"
 						key={k++}
 						texture={Texture.WHITE}
 						x={+x}
@@ -159,6 +181,7 @@ export const Canvas = (props: CanvasProps) => {
 		return state.tiles.map((tile) => {
 			return (
 				<Sprite
+					cursor="crosshair"
 					key={`${tile.x}x${tile.y}_${tile.anchor}`}
 					image={`http:\/\/localhost:1001/tile/${tile.x}x${tile.y}_${side}.png`}
 					{...tile}
@@ -216,7 +239,7 @@ export const Canvas = (props: CanvasProps) => {
 						x={lastPointerX}
 						y={lastPointerY}
 						tint={selectedColor || undefined}
-						visible={selectedColor !== null}
+						visible={mode === `brush`}
 					/>
 					<Sprite
 						texture={Texture.WHITE}
@@ -226,7 +249,7 @@ export const Canvas = (props: CanvasProps) => {
 						x={lastPointerX}
 						y={lastPointerY}
 						tint={backgroundColor}
-						visible={eraserSelected}
+						visible={mode === `eraser`}
 					/>
 				</Container>
 				<Container>{lines}</Container>

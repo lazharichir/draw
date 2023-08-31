@@ -41,9 +41,10 @@ export type ErasedPixel = {
 	y: number;
 };
 
-export type PixelSnapshot = Record<number, Record<number, PixelSnapshotItem>>;
+export type PixelSnapshot = Record<number, Record<number, Array<PixelSnapshotItem>>>;
 
 export type PixelSnapshotItem = {
+	id: string;
 	at: number;
 	color: RGBA;
 	erased: boolean;
