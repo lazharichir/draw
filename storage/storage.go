@@ -2,7 +2,6 @@ package storage
 
 import (
 	"database/sql"
-	"fmt"
 	"image/color"
 	"time"
 
@@ -107,8 +106,8 @@ func (store *pgPixelStore) GetLatestPixelsForArea(canvasID int64, topLeft core.P
 	)
 
 	query, args := sb.Build()
-	fmt.Println(`query`, query)
-	fmt.Printf("args %+#v \n", args)
+	// fmt.Println(`query`, query)
+	// fmt.Printf("args %+#v \n", args)
 
 	rows, err := store.db.Query(query, args...)
 	if err != nil {

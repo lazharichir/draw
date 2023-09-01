@@ -124,18 +124,28 @@ export const canvasReducer = (state: CanvasState, action: CanvasAction): CanvasS
             {
                 let pixels = { ...state.pixels }
                 for (const data of action.pixels) {
-                    pixels = ensureXYPath(pixels, data.x, data.y)
-                    pixels[data.x][data.y] = [
-                        {
-                            id: data.id,
-                            at: data.at,
-                            color: data.color,
-                            erased: data.deleted,
-                        },
-                        ...pixels[data.x][data.y]
+                    const { x, y, at, color, deleted, id } = data
+
+                    pixels[x] = pixels[x] || {}
+                    pixels[x][y] = pixels[x][y] || []
+
+                    const newPixel = {
+                        id: id,
+                        at: at,
+                        color: color,
+                        erased: deleted,
+                    }
+
+                    // console.log(`set pixel at: `, x, y)
+
+                    pixels[x][y] = [
+                        newPixel,
+                        ...pixels[x][y],
                     ]
                 }
-                return { ...state, pixels }
+
+                // console.log(`nextState.pixels: `, pixels)
+                return { ...state, pixels: pixels }
             }
         case 'UNSET_PIXELS':
             {
@@ -193,10 +203,10 @@ const initialState: CanvasState = {
         b: 229,
         a: 1,
     },
-    gridColor: {
-        r: 223,
-        g: 219,
-        b: 217,
+    gridColor: { // d3d3d3 in rgba format: 
+        r: 211,
+        g: 211,
+        b: 211,
         a: 1,
     },
     side: 1024,

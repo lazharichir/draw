@@ -1,8 +1,9 @@
 import { Texture, Point } from "@pixi/core";
+import { ColorMatrixFilter } from "@pixi/filter-color-matrix";
 import { Stage, Sprite, Container } from "@pixi/react";
 import { Viewport } from "pixi-viewport";
 import { RefObject, useEffect, useMemo, useRef, useState } from "react";
-import { ViewportClickedEvent, Viewport as ViewportEl } from "./Viewport";
+import { ViewportClickedEvent, ViewportDragEvent, Viewport as ViewportEl } from "./Viewport";
 import { RGBA } from "../types";
 import { CanvasState } from "../stores/canvas.store";
 import { InstrumentState } from "../stores/instruments.store";
@@ -15,7 +16,14 @@ export interface CanvasProps {
 	onScaleChange?: (scale: number) => void;
 	onViewportChange?: (viewport: Viewport) => void;
 	onViewportRefInit?: (viewport: RefObject<Viewport>) => void;
+	onDragStart?: (e: ViewportDragEvent) => void;
+	onDragEnd?: (e: ViewportDragEvent) => void;
 }
+
+const filter = new ColorMatrixFilter();
+// filter.negative(true);
+filter.contrast(1.1, true);
+filter.alpha = 0.5;
 
 export const Canvas = (props: CanvasProps) => {
 	// the screen size
@@ -27,6 +35,8 @@ export const Canvas = (props: CanvasProps) => {
 		onScaleChange = () => {},
 		onViewportChange = () => {},
 		onViewportRefInit = () => {},
+		onDragStart = () => {},
+		onDragEnd = () => {},
 	} = props;
 
 	const { screenWidth, screenHeight } = state;
@@ -44,12 +54,6 @@ export const Canvas = (props: CanvasProps) => {
 	const viewportRef = useRef<Viewport>(null);
 
 	useEffect(() => onViewportRefInit(viewportRef), [!!viewportRef.current]);
-
-	useEffect(() => {
-		if (!viewportRef.current) return;
-		// if (viewportRef.current.x === state.center.x && viewportRef.current.y === state.center.y) return;
-		// viewportRef.current.moveCenter(center.x, center.y);
-	}, [state.center]);
 
 	useEffect(() => {
 		const wheelListener = (e: WheelEvent) => {
@@ -90,6 +94,14 @@ export const Canvas = (props: CanvasProps) => {
 		onViewportChange(e.viewport);
 	};
 
+	const handleDragStart = (e: ViewportDragEvent) => {
+		onDragStart(e);
+	};
+
+	const handleDragEnd = (e: ViewportDragEvent) => {
+		onDragEnd(e);
+	};
+
 	const handleClick = (e: ViewportClickedEvent) => {
 		onClick(Math.floor(e.world.x), Math.floor(e.world.y));
 	};
@@ -100,7 +112,7 @@ export const Canvas = (props: CanvasProps) => {
 		if (!viewportRef.current) return linesEl;
 
 		const anchor = 0.5;
-		const thickness = scale < 40 ? 0.1 : 0.15;
+		const thickness = scale < 40 ? 0.1 : 0.05;
 		const x = Math.floor(viewportRef.current.corner.x);
 		const y = Math.floor(viewportRef.current.corner.y);
 		const width = viewportRef.current.screenWidth;
@@ -152,6 +164,7 @@ export const Canvas = (props: CanvasProps) => {
 	const pixels: JSX.Element[] = useMemo(() => {
 		const els: JSX.Element[] = [];
 		let k = 0;
+
 		Object.keys(state.pixels || {}).forEach((x) => {
 			Object.keys(state.pixels[+x] || {}).forEach((y) => {
 				const log = state.pixels[+x][+y];
@@ -163,8 +176,8 @@ export const Canvas = (props: CanvasProps) => {
 						cursor="crosshair"
 						key={k++}
 						texture={Texture.WHITE}
-						x={+x}
-						y={+y}
+						x={parseInt(x)}
+						y={parseInt(y)}
 						tint={erased ? backgroundColor : color}
 						width={1}
 						height={1}
@@ -221,6 +234,8 @@ export const Canvas = (props: CanvasProps) => {
 				onMoved={handleMoved}
 				onZoomedEnd={handleZoomedEnd}
 				onPointerMoved={handlePointerMoved}
+				onDragStart={handleDragStart}
+				onDragEnd={handleDragEnd}
 				clampZoomOptions={{
 					minScale: 1,
 					maxScale: 70,
@@ -230,6 +245,7 @@ export const Canvas = (props: CanvasProps) => {
 					<Container>{tiles}</Container>
 					<Container>{pixels}</Container>
 				</Container>
+				<Container filters={null}>{lines}</Container>
 				<Container>
 					<Sprite
 						texture={Texture.WHITE}
@@ -252,7 +268,6 @@ export const Canvas = (props: CanvasProps) => {
 						visible={mode === `eraser`}
 					/>
 				</Container>
-				<Container>{lines}</Container>
 			</ViewportEl>
 		</Stage>
 	);

@@ -3,7 +3,7 @@ import { Point } from "@pixi/core";
 import { Application } from "@pixi/app";
 import { PixiComponent, useApp } from "@pixi/react";
 import { IClampZoomOptions, Viewport as PixiViewport } from "pixi-viewport";
-import { EventSystem } from "@pixi/events";
+import { EventSystem, FederatedEvent } from "@pixi/events";
 
 export type ViewportClickedEvent = {
 	screen: Point;
@@ -38,6 +38,13 @@ export type ViewportInitedEvent = {
 	viewport: PixiViewport;
 };
 
+export type ViewportDragEvent = {
+	event: FederatedEvent;
+	viewport: PixiViewport;
+	screen: Point;
+	world: Point;
+};
+
 export interface ViewportProps {
 	screenWidth: number;
 	screenHeight: number;
@@ -50,6 +57,8 @@ export interface ViewportProps {
 	onMoved?: (e: ViewportMovedEvent) => void;
 	onInited?: (e: ViewportInitedEvent) => void;
 	onPointerMoved?: (e: Point) => void;
+	onDragStart?: (e: ViewportDragEvent) => void;
+	onDragEnd?: (e: ViewportDragEvent) => void;
 	// plugin options
 	clampZoomOptions?: IClampZoomOptions;
 }
@@ -99,6 +108,22 @@ const PixiComponentViewport = PixiComponent("Viewport", {
 			if (props.onZoomedEnd) {
 				props.onZoomedEnd({
 					viewport: viewport,
+				});
+			}
+		});
+
+		viewport.on(`drag-start`, (e) => {
+			if (props.onDragStart) {
+				props.onDragStart({
+					...e,
+				});
+			}
+		});
+
+		viewport.on(`drag-end`, (e) => {
+			if (props.onDragEnd) {
+				props.onDragEnd({
+					...e,
 				});
 			}
 		});

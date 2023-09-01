@@ -46,7 +46,7 @@ func (h *handlers) PollAreaPixels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("GET /poll", canvasID, from, topLeft, bottomRight)
+	// fmt.Println("GET /poll", canvasID, from, topLeft, bottomRight)
 
 	// send empty json object
 	w.Header().Set("Content-Type", "application/json")
@@ -93,13 +93,6 @@ func (h *handlers) DrawImage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) ErasePixel(w http.ResponseWriter, r *http.Request) {
-	// fail on purpose half of the time
-	// if rand.Intn(5) == 0 {
-	// 	time.Sleep(1 * time.Second)
-	// 	w.WriteHeader(http.StatusInternalServerError)
-	// 	return
-	// }
-
 	canvasID := chiURLParamInt64(r, "canvasID")
 	x := chiURLParamInt64(r, "x")
 	y := chiURLParamInt64(r, "y")
@@ -109,17 +102,9 @@ func (h *handlers) ErasePixel(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
 }
 
 func (h *handlers) DrawPixel(w http.ResponseWriter, r *http.Request) {
-	// fail on purpose half of the time
-	// if rand.Intn(5) == 0 {
-	// 	time.Sleep(1 * time.Second)
-	// 	w.WriteHeader(http.StatusInternalServerError)
-	// 	return
-	// }
-
 	canvasID := chiURLParamInt64(r, "canvasID")
 	x := chiURLParamInt64(r, "x")
 	y := chiURLParamInt64(r, "y")
@@ -140,7 +125,6 @@ func (h *handlers) DrawPixel(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
 }
 
 func (h *handlers) GetTileImage(w http.ResponseWriter, r *http.Request) {

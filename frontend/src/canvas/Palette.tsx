@@ -1,5 +1,9 @@
 import { RGBA, RGBAEquals } from "../types";
 import { Color } from "@pixi/core";
+import { useHotkeys } from "react-hotkeys-hook";
+import { useInstruments } from "../stores/instruments.store";
+import { paletteColorsAtom } from "../stores/jotai";
+import { useAtomValue } from "jotai";
 
 type PaletteProps = {
 	choices: RGBA[];
@@ -11,6 +15,36 @@ type PaletteProps = {
 
 export const Palette = (props: PaletteProps) => {
 	const { choices, value, onChange = () => {}, onEraserClick = () => {}, eraserSelected = false } = props;
+	const instruments = useInstruments();
+	const colorChoices = useAtomValue(paletteColorsAtom);
+
+	// keybindings
+	useHotkeys(`e`, () => instruments.setMode("eraser"), []);
+	useHotkeys(
+		`1`,
+		() => {
+			instruments.setBrushColor(colorChoices[0]);
+			instruments.setMode(`brush`);
+		},
+		[]
+	);
+	useHotkeys(
+		`2`,
+		() => {
+			instruments.setBrushColor(colorChoices[1]);
+			instruments.setMode(`brush`);
+		},
+		[]
+	);
+	useHotkeys(
+		`3`,
+		() => {
+			instruments.setBrushColor(colorChoices[2]);
+			instruments.setMode(`brush`);
+		},
+		[]
+	);
+
 	return (
 		<ul className=" h-7 flex flex-col flex-nowrap gap-0 text-center">
 			{choices.map((choice, i) => {

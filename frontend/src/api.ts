@@ -13,7 +13,18 @@ const getEndpointFromProps = (props: { canvasId: number; topLeft: Point; bottomR
     return endpoint.toString();
 };
 
-export const pollPixelsRemotely = async (canvasId: number, topLeft: Point, bottomRight: Point, since: Date): Promise<PixelDrawn[]> => {
+type PollPixelsRemotelyItem = {
+    X: number;
+    Y: number;
+    RGBA: {
+        R: number;
+        G: number;
+        B: number;
+        A: number;
+    };
+}
+
+export const pollPixelsRemotely = async (canvasId: number, topLeft: Point, bottomRight: Point, since: Date): Promise<PollPixelsRemotelyItem[]> => {
     // build endpoint
     const endpoint = new URL(`http://localhost:1001/poll`);
     endpoint.searchParams.append(`cid`, canvasId.toString());
@@ -28,7 +39,11 @@ export const pollPixelsRemotely = async (canvasId: number, topLeft: Point, botto
         throw Error(`Error putting pixel remotely: ${res.statusText}`);
     }
 
-    return await res.json() || [];
+    const data = (await res.json() || []) as PollPixelsRemotelyItem[]
+    data.forEach(element => {
+        element.RGBA.A = 1
+    });
+    return data
 };
 
 export const putPixelRemotely = async (canvasID: number, x: number, y: number, pixelColor: RGBA) => {

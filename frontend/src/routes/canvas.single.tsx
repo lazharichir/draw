@@ -5,19 +5,16 @@ import { erasePixelRemotely, pollPixelsRemotely, putPixelRemotely } from "../api
 import { Canvas } from "../canvas/Canvas";
 import { Palette } from "../canvas/Palette";
 import { useResize } from "../hooks/useResize";
-import { CanvasState, Point, useCanvasReducer } from "../stores/canvas.store";
+import { CanvasState, Point, SetPixelData, useCanvasReducer } from "../stores/canvas.store";
 import { useInstruments } from "../stores/instruments.store";
 import { paletteColorsAtom } from "../stores/jotai";
 import { BaseTexture, settings } from "@pixi/core";
 import { SCALE_MODES } from "@pixi/constants";
 import { useParams } from "react-router-dom";
 import { Viewport } from "pixi-viewport";
-import { useHotkeys } from "react-hotkeys-hook";
 import Modal from "../components/Modal";
 import { useCopyToClipboard } from "../hooks/useCopyToClipboard";
 import { toastFail, toastSuccess } from "../stores/toasts";
-import useWebSocket, { ReadyState } from "react-use-websocket";
-import { usePixelPolling } from "../hooks/usePolling";
 import { useSmartInterval } from "../hooks/useSmartInterval";
 
 // set some global pixi settings
@@ -55,14 +52,32 @@ const getWorldTopLeftBottomRightFromViewport = (
 	] as [Point, Point];
 	if (!viewport) return pt;
 
-	let topLeft = viewport.toWorld(center.x - screenWidth / 2, center.y - screenHeight / 2);
-	let bottomRight = viewport.toWorld(center.x + screenWidth / 2, center.y + screenHeight / 2);
+	let screenWidthInWorldPixels = Math.floor(viewport.screenWidthInWorldPixels);
+	let screenHeightInWorldPixels = Math.floor(viewport.screenHeightInWorldPixels);
 
-	topLeft.x = Math.floor(topLeft.x || 0);
-	topLeft.y = Math.floor(topLeft.y || 0);
+	let halfScreenWidthInWorldPixels = Math.floor(screenWidthInWorldPixels / 2);
+	let halfScreenHeightInWorldPixels = Math.floor(screenHeightInWorldPixels / 2);
 
-	bottomRight.x = Math.floor(bottomRight.x || 0);
-	bottomRight.y = Math.floor(bottomRight.y || 0);
+	let centerX = Math.floor(viewport.center.x);
+	let centerY = Math.floor(viewport.center.y);
+
+	let topLeft = {
+		x: centerX - halfScreenWidthInWorldPixels,
+		y: centerY - halfScreenHeightInWorldPixels,
+	};
+
+	let bottomRight = {
+		x: centerX + halfScreenWidthInWorldPixels,
+		y: centerY + halfScreenHeightInWorldPixels,
+	};
+
+	// console.log(` `);
+	// console.log(`center`, centerX, centerY);
+	// console.log(`viewport.screenWidth/Height`, viewport.screenWidth, viewport.screenHeight);
+	// console.log(`viewport.screenW/HInWorldPxs`, screenWidthInWorldPixels, screenHeightInWorldPixels);
+	// console.log(`top left`, topLeft.x, topLeft.y);
+	// console.log(`bottom right`, bottomRight.x, bottomRight.y);
+	// console.log(` `);
 
 	return [topLeft, bottomRight];
 };
@@ -93,6 +108,7 @@ export default function CanvasSingle() {
 	const [showGoToModal, setShowGoToModal] = useState(false);
 	const [topLeft, setTopLeft] = useState<Point>({ x: 0, y: 0 });
 	const [bottomRight, setBottomRight] = useState<Point>({ x: 0, y: 0 });
+	const [dragging, setIsDragging] = useState<boolean>(false);
 
 	useEffect(() => {
 		const [tl, br] = getWorldTopLeftBottomRightFromViewport(
@@ -108,7 +124,7 @@ export default function CanvasSingle() {
 
 	const timerIdRef = useRef<number | null>(null);
 	const [isPollingEnabled, setIsPollingEnabled] = useState(true);
-	const [pollingFrom, setPollingFrom] = useState<Date>(getDateObjectTenMinutesAgo());
+	const [pollingFrom, setPollingFrom] = useState<Date>(new Date());
 	const smartInterval = useSmartInterval({
 		min: 1000,
 		max: 10000,
@@ -116,39 +132,51 @@ export default function CanvasSingle() {
 		successMultiplier: 0.1,
 		errorMultiplier: 2,
 		quietMultiplier: 1.1,
-		quietMax: 1500,
+		quietMax: 5000,
 	});
 
 	useEffect(() => {
 		const pollingCallback = async () => {
-			console.log(`Polling... (${smartInterval.value})`);
-
+			console.log(`> polling pixels...`, topLeft, bottomRight);
 			const pixels = await pollPixelsRemotely(canvasState.state.canvasId, topLeft, bottomRight, pollingFrom);
-			const pixelsWithIds = pixels.map((p) => ({ ...p, id: crypto.randomUUID(), deleted: false }));
-			canvasState.setPixels(pixelsWithIds);
-
-			console.log(`> polled pixels`, pixelsWithIds.length, pixelsWithIds);
-
+			const pixelsWithIds: SetPixelData[] = pixels.map((p) => ({
+				id: crypto.randomUUID(),
+				at: Date.now(),
+				color: {
+					r: p.RGBA.R,
+					g: p.RGBA.G,
+					b: p.RGBA.B,
+					a: p.RGBA.A,
+				},
+				deleted: false,
+				x: p.X,
+				y: p.Y,
+			}));
 			setPollingFrom(new Date());
+
+			console.log(
+				`> polled pixels (delay: ${smartInterval.value.toLocaleString()}ms)`,
+				pixelsWithIds.length,
+				pixelsWithIds
+			);
 
 			if (pixelsWithIds.length === 0) {
 				smartInterval.quiet();
 			} else {
+				canvasState.setPixels(pixelsWithIds);
 				smartInterval.success();
 			}
 		};
 
 		const startPolling = () => {
 			timerIdRef.current = setInterval(pollingCallback, smartInterval.value);
-			console.log(`[POLLING] STARTED / `, timerIdRef.current);
 		};
 
 		const stopPolling = () => {
-			console.log(`[POLLING] STOPPED / `, timerIdRef.current);
 			clearInterval(timerIdRef.current || undefined);
 		};
 
-		if (isPollingEnabled) {
+		if (isPollingEnabled && !dragging) {
 			startPolling();
 		} else {
 			stopPolling();
@@ -157,55 +185,22 @@ export default function CanvasSingle() {
 		return () => {
 			stopPolling();
 		};
-	}, [isPollingEnabled, smartInterval.value, pollingFrom, topLeft, bottomRight, canvasState.state.canvasId]);
-
-	// const polling = usePixelPolling({
-	// 	canvasId: id,
-	// 	delayMs: 3000,
-	// 	from: getDateObjectTenMinutesAgo(),
-	// 	topLeft: topLeft,
-	// 	bottomRight: bottomRight,
-	// 	callback: (data) => {
-	// 		console.log(`> polled data`, data);
-	// 	},
-	// });
-
-	// useEffect(() => {
-	// 	polling.startPolling();
-	// }, []);
-
-	// keybindings
-	useHotkeys(`e`, () => instruments.setMode("eraser"), []);
-	useHotkeys(
-		`1`,
-		() => {
-			instruments.setBrushColor(colorChoices[0]);
-			instruments.setMode(`brush`);
-		},
-		[]
-	);
-	useHotkeys(
-		`2`,
-		() => {
-			instruments.setBrushColor(colorChoices[1]);
-			instruments.setMode(`brush`);
-		},
-		[]
-	);
-	useHotkeys(
-		`3`,
-		() => {
-			instruments.setBrushColor(colorChoices[2]);
-			instruments.setMode(`brush`);
-		},
-		[]
-	);
+	}, [
+		dragging,
+		isPollingEnabled,
+		smartInterval.value,
+		pollingFrom,
+		topLeft,
+		bottomRight,
+		canvasState.state.canvasId,
+	]);
 
 	useEffect(() => canvasState.setScreenSize(screenWidth, screenHeight), [screenWidth, screenHeight]);
 
 	useEffect(() => {
-		window.history.replaceState(null, "New Page Title", buildNewURL(canvasState.state));
-	}, [canvasState.state.canvasId, canvasState.state.center, canvasState.state.scale]);
+		if (dragging) return;
+		window.history.replaceState(null, "", buildNewURL(canvasState.state));
+	}, [dragging, canvasState.state.canvasId, canvasState.state.center, canvasState.state.scale]);
 
 	function handleCanvasClick(x: number, y: number) {
 		const currentMode = instruments.current().mode;
@@ -286,56 +281,18 @@ export default function CanvasSingle() {
 							onScaleChange={(w) => canvasState.setScale(w)}
 							onViewportChange={(viewport) => canvasState.retile(viewport)}
 							onViewportRefInit={(viewport) => setViewportRef(viewport)}
+							onDragStart={() => setIsDragging(true)}
+							onDragEnd={() => setIsDragging(false)}
 						/>
 					</div>
-					<div className="fixed top-0 left-0 w-fit h-full z-50 bg-white bg-opacity-50">
+					<div className="fixed top-0 left-0 w-fit h-full z-50 bg-white bg-opacity-50 hidden">
 						<button
 							className="p-4"
 							onClick={async () => {
-								const endpoint = new URL(`http://localhost:1001/poll`);
-								endpoint.searchParams.append(`cid`, canvasState.state.canvasId.toString());
-								endpoint.searchParams.append(`from`, getDateObjectTenMinutesAgo().toISOString());
-
-								let worldTopLeft = viewportRef?.current?.toWorld(
-									canvasState.state.center.x - canvasState.state.screenWidth / 2,
-									canvasState.state.center.y - canvasState.state.screenHeight / 2
-								);
-
-								let worldBottomRight = viewportRef?.current?.toWorld(
-									canvasState.state.center.x + canvasState.state.screenWidth / 2,
-									canvasState.state.center.y + canvasState.state.screenHeight / 2
-								);
-
-								if (!worldTopLeft || !worldBottomRight) {
-									throw Error(`Failed to get world coordinates from viewport.`);
-								}
-
-								// floor
-								worldTopLeft.x = Math.floor(worldTopLeft?.x || 0) - 20;
-								worldTopLeft.y = Math.floor(worldTopLeft?.y || 0) - 20;
-								worldBottomRight.x = Math.floor(worldBottomRight?.x || 0) + 20;
-								worldBottomRight.y = Math.floor(worldBottomRight?.y || 0) + 20;
-
-								endpoint.searchParams.append(`tlx`, worldTopLeft?.x.toString() || ``);
-								endpoint.searchParams.append(`tly`, worldTopLeft?.y.toString() || ``);
-								endpoint.searchParams.append(`brx`, worldBottomRight?.x.toString() || ``);
-								endpoint.searchParams.append(`bry`, worldBottomRight?.y.toString() || ``);
-
-								const res = await fetch(endpoint.toString(), {
-									method: `GET`,
-								});
-
-								console.log(`endpoint.toString().res`, endpoint.toString(), res.ok, res);
-
-								if (!res.ok) {
-									throw Error(`Error polling pixels remotely: ${res.statusText}`);
-								}
-
-								const data = await res.json();
-								console.log(`> polled data`, data);
+								setIsPollingEnabled(!isPollingEnabled);
 							}}
 						>
-							poll...
+							{isPollingEnabled ? `Stop Polling` : `Start Polling`}
 						</button>
 					</div>
 					<div className="fixed bottom-0 left-0 w-full h-fit z-50">
