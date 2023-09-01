@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 )
@@ -8,6 +9,10 @@ import (
 type Point struct {
 	X int64
 	Y int64
+}
+
+func (p Point) String() string {
+	return "(" + fmt.Sprint(p.X) + "," + fmt.Sprint(p.Y) + ")"
 }
 
 func NewPixel(x, y int64, c color.Color) Pixel {
@@ -18,6 +23,10 @@ type Pixel struct {
 	X    int64
 	Y    int64
 	RGBA color.RGBA
+}
+
+func (pixel Pixel) Point() Point {
+	return Point{X: pixel.X, Y: pixel.Y}
 }
 
 func (pixel *Pixel) SetColor(c color.Color) {

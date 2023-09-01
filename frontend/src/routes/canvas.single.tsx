@@ -137,34 +137,38 @@ export default function CanvasSingle() {
 
 	useEffect(() => {
 		const pollingCallback = async () => {
-			console.log(`> polling pixels...`, topLeft, bottomRight);
-			const pixels = await pollPixelsRemotely(canvasState.state.canvasId, topLeft, bottomRight, pollingFrom);
-			const pixelsWithIds: SetPixelData[] = pixels.map((p) => ({
-				id: crypto.randomUUID(),
-				at: Date.now(),
-				color: {
-					r: p.RGBA.R,
-					g: p.RGBA.G,
-					b: p.RGBA.B,
-					a: p.RGBA.A,
-				},
-				deleted: false,
-				x: p.X,
-				y: p.Y,
-			}));
-			setPollingFrom(new Date());
+			try {
+				const pixels = await pollPixelsRemotely(canvasState.state.canvasId, topLeft, bottomRight, pollingFrom);
+				const pixelsWithIds: SetPixelData[] = pixels.map((p) => ({
+					id: crypto.randomUUID(),
+					at: Date.now(),
+					color: {
+						r: p.RGBA.R,
+						g: p.RGBA.G,
+						b: p.RGBA.B,
+						a: p.RGBA.A,
+					},
+					deleted: false,
+					x: p.X,
+					y: p.Y,
+				}));
+				setPollingFrom(new Date());
 
-			console.log(
-				`> polled pixels (delay: ${smartInterval.value.toLocaleString()}ms)`,
-				pixelsWithIds.length,
-				pixelsWithIds
-			);
+				console.log(
+					`> polled pixels (delay: ${smartInterval.value.toLocaleString()}ms)`,
+					pixelsWithIds.length,
+					pixelsWithIds || []
+				);
 
-			if (pixelsWithIds.length === 0) {
-				smartInterval.quiet();
-			} else {
-				canvasState.setPixels(pixelsWithIds);
-				smartInterval.success();
+				if (pixelsWithIds.length === 0) {
+					smartInterval.quiet();
+				} else {
+					canvasState.setPixels(pixelsWithIds);
+					smartInterval.success();
+				}
+			} catch (error) {
+				console.error(`> polling failed`, error);
+				smartInterval.error();
 			}
 		};
 

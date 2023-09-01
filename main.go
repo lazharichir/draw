@@ -17,12 +17,13 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/lazharichir/draw/core"
 	"github.com/lazharichir/draw/handlers"
+	"github.com/lazharichir/draw/services"
 	"github.com/lazharichir/draw/storage"
 )
 
 var (
-	lastTopLeft     = core.Point{X: 0, Y: 0}
-	lastBottomRight = core.Point{X: 0, Y: 0}
+	lastTopLeft     = core.Point{X: -1000, Y: 1000}
+	lastBottomRight = core.Point{X: -1000, Y: 1000}
 )
 
 // Gzip Compression
@@ -55,8 +56,9 @@ func main() {
 
 	db := storage.NewPG()
 	storage := storage.NewPGPixelStore(db, nil)
+	landRegistry := services.NewLandRegistry(db)
 
-	handlers := handlers.New(storage)
+	handlers := handlers.New(storage, landRegistry)
 
 	r := chi.NewRouter()
 
@@ -83,7 +85,7 @@ func main() {
 		handlers.PollAreaPixels(w, r)
 	})
 
-	ticker := time.NewTicker(500 * time.Millisecond)
+	ticker := time.NewTicker(900 * time.Millisecond)
 	quit := make(chan struct{})
 	go func() {
 		for {
@@ -91,16 +93,15 @@ func main() {
 			case <-ticker.C:
 
 				randomPixels := []core.Pixel{}
-				for i := 0; i < rand.Intn(8); i++ {
+				for i := 0; i < rand.Intn(2); i++ {
 					px := generatePixel(
 						randomBetweenInts(lastTopLeft.X, lastBottomRight.X),
 						randomBetweenInts(lastTopLeft.Y, lastBottomRight.Y),
 					)
-					// fmt.Println("random pixel:", px.X, ",", px.Y)
 					randomPixels = append(randomPixels, px)
 				}
 
-				if err := storage.DrawPixels(0, randomPixels); err != nil {
+				if err := storage.DrawPixels(1, randomPixels); err != nil {
 					fmt.Println(err)
 				}
 

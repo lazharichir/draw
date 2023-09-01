@@ -14,13 +14,11 @@ export const useSmartInterval = (props: SmartIntervalProps) => {
 	const [value, setValue] = useState(props.initialValue);
 
 	function success() {
-		if (value === props.min) {
-			return;
-		}
-
 		const nextValue = Math.floor(value * props.successMultiplier);
 		if (nextValue < props.min) {
 			setValue(props.min);
+		} else if (nextValue > props.max) {
+			setValue(props.max);
 		} else {
 			setValue(nextValue);
 		}
