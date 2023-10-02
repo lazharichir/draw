@@ -28,7 +28,7 @@ func TestArea_Height(t *testing.T) {
 		TopLeft:     Point{X: 0, Y: 0},
 		BottomRight: Point{X: 0, Y: 10},
 	}
-	expected := int64(10)
+	expected := int64(11)
 	if actual := area.Height(); actual != expected {
 		t.Errorf("Expected height to be %d, but got %d", expected, actual)
 	}
@@ -39,7 +39,7 @@ func TestArea_Width(t *testing.T) {
 		TopLeft:     Point{X: 0, Y: 0},
 		BottomRight: Point{X: 10, Y: 0},
 	}
-	expected := int64(10)
+	expected := int64(11)
 	if actual := area.Width(); actual != expected {
 		t.Errorf("Expected width to be %d, but got %d", expected, actual)
 	}
@@ -149,6 +149,39 @@ func TestArea_IntersectsArea(t *testing.T) {
 	}
 }
 
+func TestArea_Surface(t *testing.T) {
+	area := Area{
+		TopLeft:     Point{X: 0, Y: 0},
+		BottomRight: Point{X: 10, Y: 10},
+	}
+	expected := int64(121)
+	if actual := area.Surface(); actual != expected {
+		t.Errorf("Expected surface to be %d, but got %d", expected, actual)
+	}
+}
+
+func TestArea_SurfaceOne(t *testing.T) {
+	area := Area{
+		TopLeft:     Point{X: 3, Y: 3},
+		BottomRight: Point{X: 3, Y: 3},
+	}
+	expected := int64(1)
+	if actual := area.Surface(); actual != expected {
+		t.Errorf("Expected surface to be %d, but got %d", expected, actual)
+	}
+}
+
+func TestArea_SurfaceTwo(t *testing.T) {
+	area := Area{
+		TopLeft:     Point{X: 3, Y: 3},
+		BottomRight: Point{X: 3, Y: 4},
+	}
+	expected := int64(2)
+	if actual := area.Surface(); actual != expected {
+		t.Errorf("Expected surface to be %d, but got %d", expected, actual)
+	}
+}
+
 func TestArea_String(t *testing.T) {
 	area := Area{
 		TopLeft:     Point{X: 0, Y: 0},
@@ -181,24 +214,6 @@ func TestArea_Equal(t *testing.T) {
 	}
 	if area1.Equal(area2) {
 		t.Error("Expected areas to not be equal, but they were")
-	}
-}
-
-func TestArea_Empty(t *testing.T) {
-	area := Area{
-		TopLeft:     Point{X: 0, Y: 0},
-		BottomRight: Point{X: 0, Y: 0},
-	}
-	if !area.Empty() {
-		t.Error("Expected area to be empty, but it was not")
-	}
-
-	area = Area{
-		TopLeft:     Point{X: 0, Y: 0},
-		BottomRight: Point{X: 10, Y: 10},
-	}
-	if area.Empty() {
-		t.Error("Expected area to not be empty, but it was")
 	}
 }
 

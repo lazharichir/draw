@@ -17,7 +17,9 @@ require (
 require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/huandu/xstrings v1.3.2 // indirect
+	github.com/jaevor/go-nanoid v1.3.0
 	github.com/lib/pq v1.10.7
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
+	golang.org/x/image v0.12.0
 )

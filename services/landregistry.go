@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/lazharichir/draw/core"
 )
@@ -19,23 +21,272 @@ type LandRegistry struct {
 func NewLandRegistry(db *sql.DB) *LandRegistry {
 	return &LandRegistry{db}
 }
+func (lr *LandRegistry) DeleteLease(ctx context.Context, id string) error {
+	query := `DELETE FROM leases WHERE id = $1`
+	_, err := lr.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed DeleteLease: %w", err)
+	}
+	return nil
+}
 
 func (lr *LandRegistry) SaveLease(ctx context.Context, lease core.Lease) error {
+	query := `
+		INSERT INTO "leases" ("id", "leaseholder_id", "canvas_id", "tl_x", "tl_y", "br_x", "br_y", "width", "height", "status", "start", "end", "price", "metadata", "updated_at", "updated_by", "created_at", "created_by")
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+		ON CONFLICT ("id") DO UPDATE SET
+			"status" = excluded."status",
+			"start" = excluded."start",
+			"end" = excluded."end",
+			"price" = excluded."price",
+			"metadata" = excluded."metadata",
+			"updated_at" = excluded."updated_at",
+			"updated_by" = excluded."updated_by"
+	`
+	_, err := lr.db.ExecContext(
+		ctx,
+		query,
+		lease.ID,
+		lease.LeaseholderID,
+		lease.CanvasID,
+		lease.Area.TopLeft.X,
+		lease.Area.TopLeft.Y,
+		lease.Area.BottomRight.X,
+		lease.Area.BottomRight.Y,
+		lease.Area.Width(),
+		lease.Area.Height(),
+		lease.Status,
+		lease.Start,
+		lease.End,
+		lease.Price,
+		lease.Metadata,
+		lease.UpdatedAt,
+		lease.UpdatedBy,
+		lease.CreatedAt,
+		lease.CreatedBy,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to save lease: %w", err)
+	}
 	return nil
 }
 
 func (lr *LandRegistry) GetLease(ctx context.Context, leaseID string) (*core.Lease, error) {
-	return nil, nil
+	leases, err := lr.GetLeasesByID(ctx, leaseID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get lease: %w", err)
+	}
+	if len(leases) == 0 {
+		return nil, nil
+	}
+
+	return &leases[0], nil
 }
 
-func (lr *LandRegistry) GetLeasesByArea(ctx context.Context, leaseID string) ([]core.Lease, error) {
-	return nil, nil
+func (lr *LandRegistry) GetLeasesByID(ctx context.Context, ids ...string) ([]core.Lease, error) {
+	leases := []core.Lease{}
+	if len(ids) == 0 {
+		return leases, nil
+	}
+
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+
+	placeholders := make([]string, len(ids))
+	for i := range placeholders {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+	}
+
+	query := fmt.Sprintf(`
+		SELECT 
+			"id",
+			"leaseholder_id",
+			"canvas_id",
+			"tl_x",
+			"tl_y",
+			"br_x",
+			"br_y",
+			"status",
+			"start",
+			"end",
+			"price",
+			"metadata",
+			"updated_at",
+			"updated_by",
+			"created_at",
+			"created_by"
+		FROM "leases"
+		WHERE "id" IN (%s)
+	`, strings.Join(placeholders, ", "))
+
+	rows, err := lr.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return leases, nil
+		}
+		return nil, fmt.Errorf("failed to get leases: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var lease core.Lease
+		err := rows.Scan(
+			&lease.ID,
+			&lease.LeaseholderID,
+			&lease.CanvasID,
+			&lease.Area.TopLeft.X,
+			&lease.Area.TopLeft.Y,
+			&lease.Area.BottomRight.X,
+			&lease.Area.BottomRight.Y,
+			&lease.Status,
+			&lease.Start,
+			&lease.End,
+			&lease.Price,
+			&lease.Metadata,
+			&lease.UpdatedAt,
+			&lease.UpdatedBy,
+			&lease.CreatedAt,
+			&lease.CreatedBy,
+		)
+		lease.Start = lease.Start.UTC()
+		lease.End = lease.End.UTC()
+		lease.UpdatedAt = lease.UpdatedAt.UTC()
+		lease.CreatedAt = lease.CreatedAt.UTC()
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan lease: %w", err)
+		}
+		leases = append(leases, lease)
+	}
+
+	return leases, nil
 }
 
-func (lr *LandRegistry) CanDrawPixel(ctx context.Context, drawerID int, pixel core.Pixel) (bool, error) {
-	return true, nil
+func (lr *LandRegistry) GetLeasesByPoint(ctx context.Context, canvasID int64, point core.Point) ([]core.Lease, error) {
+	query := `
+		SELECT id
+		FROM leases
+		WHERE 
+			canvas_id = $1 AND
+			tl_x <= $2 AND
+			br_x >= $2 AND
+			tl_y >= $3 AND
+			br_y <= $3
+	`
+	args := []any{
+		canvasID,
+		point.X,
+		point.Y,
+	}
+
+	rows, err := lr.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed GetLeasesByPoint: %w", err)
+	}
+	defer rows.Close()
+
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		err := rows.Scan(&id)
+		if err != nil {
+			return nil, fmt.Errorf("failed GetLeasesByPoint scan: %w", err)
+		}
+		ids = append(ids, id)
+	}
+
+	return lr.GetLeasesByID(ctx, ids...)
 }
 
-func (lr *LandRegistry) CanDrawInArea(ctx context.Context, drawerID int, topLeft, bottomRight core.Point) (bool, error) {
+func (lr *LandRegistry) GetLeasesByArea(ctx context.Context, canvasID int64, area core.Area) ([]core.Lease, error) {
+	query := `
+		SELECT id
+		FROM leases
+		WHERE 
+			canvas_id = $1 AND
+			(
+				NOT (
+					tl_x > $2 -- Given br_x
+					OR br_x < $3 -- Given tl_x
+					OR tl_y < $4 -- Given br_y
+					OR br_y > $5 -- Given tl_y
+				)
+			)
+	`
+	args := []any{
+		canvasID,
+		area.BottomRight.X,
+		area.TopLeft.X,
+		area.BottomRight.Y,
+		area.TopLeft.Y,
+	}
+
+	rows, err := lr.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed GetLeasesByArea: %w", err)
+	}
+	defer rows.Close()
+
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		err := rows.Scan(&id)
+		if err != nil {
+			return nil, fmt.Errorf("failed GetLeasesByArea scan: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return lr.GetLeasesByID(ctx, ids...)
+}
+
+func (lr *LandRegistry) CanDrawPixel(ctx context.Context, canvasID int64, drawerID int64, pixel core.Pixel) (bool, error) {
+	leases, err := lr.GetLeasesByPoint(ctx, canvasID, pixel.Point)
+	if err != nil {
+		return false, fmt.Errorf("CanDrawPixel: %w", err)
+	}
+
+	for _, lease := range leases {
+		pixelInLease := lease.Area.ContainsPoint(pixel.Point)
+		if !pixelInLease {
+			continue
+		}
+
+		if !lease.IsActiveAt(time.Now()) {
+			continue
+		}
+
+		if lease.LeaseholderID != drawerID {
+			return false, fmt.Errorf("CanDrawPixel: %d cannot draw in %s", drawerID, pixel.Point.String())
+		}
+	}
+
+	return false, nil
+}
+
+func (lr *LandRegistry) CanDrawInArea(ctx context.Context, canvasID int64, drawerID int64, area core.Area) (bool, error) {
+	leases, err := lr.GetLeasesByArea(ctx, canvasID, area)
+	if err != nil {
+		return false, fmt.Errorf("CanDrawPixel: %w", err)
+	}
+
+	now := time.Now()
+	for _, lease := range leases {
+		// Ignore the lease if it is not active at the current time.
+		if !lease.IsActiveAt(now) {
+			continue
+		}
+
+		// Ignore the lease if it does not intersect the given area.
+		if !lease.Area.IntersectsArea(area) {
+			continue
+		}
+
+		// Not allowed if one of the relevant leases is not owned by the drawer.
+		if lease.LeaseholderID != drawerID {
+			return false, fmt.Errorf("CanDrawInArea: %d cannot draw in %s", drawerID, area.String())
+		}
+	}
+
 	return true, nil
 }

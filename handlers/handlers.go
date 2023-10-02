@@ -132,7 +132,7 @@ func (h *handlers) DrawPixel(w http.ResponseWriter, r *http.Request) {
 	pixel := core.NewPixel(x, y, color)
 
 	// check if the pixel can be drawn
-	if ok, err := h.landRegistry.CanDrawPixel(r.Context(), 0, pixel); err != nil {
+	if ok, err := h.landRegistry.CanDrawPixel(r.Context(), 0, 0, pixel); err != nil {
 		fmt.Println(err)
 		w.Write([]byte(err.Error()))
 		w.WriteHeader(http.StatusInternalServerError)

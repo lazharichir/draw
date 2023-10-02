@@ -16,20 +16,16 @@ type Area struct {
 	BottomRight Point
 }
 
-func (area Area) Empty() bool {
-	return area.Height() == 0 || area.Width() == 0
-}
-
 func (area Area) Equal(other Area) bool {
 	return area.TopLeft == other.TopLeft && area.BottomRight == other.BottomRight
 }
 
 func (area Area) Height() int64 {
-	return Abs(area.TopLeft.Y - area.BottomRight.Y)
+	return Abs(area.TopLeft.Y-area.BottomRight.Y) + 1
 }
 
 func (area Area) Width() int64 {
-	return Abs(area.TopLeft.X - area.BottomRight.X)
+	return Abs(area.TopLeft.X-area.BottomRight.X) + 1
 }
 
 func (area Area) IsLandscape() bool {
