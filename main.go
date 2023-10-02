@@ -198,5 +198,5 @@ func generateRandomColor() color.RGBA {
 }
 
 func generatePixel(x, y int64) core.Pixel {
-	return core.Pixel{X: x, Y: y, RGBA: randomRGBA()}
+	return core.NewPixel(x, y, randomRGBA())
 }

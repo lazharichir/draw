@@ -138,7 +138,7 @@ func (h *handlers) DrawPixel(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	} else if !ok {
-		err := services.ErrCannotDrawInArea(0, pixel.Point(), pixel.Point())
+		err := services.ErrCannotDrawInArea(0, pixel.Point, pixel.Point)
 		fmt.Println(err)
 		w.WriteHeader(http.StatusForbidden)
 		w.Write([]byte(err.Error()))

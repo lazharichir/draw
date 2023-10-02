@@ -20,6 +20,18 @@ func NewLandRegistry(db *sql.DB) *LandRegistry {
 	return &LandRegistry{db}
 }
 
+func (lr *LandRegistry) SaveLease(ctx context.Context, lease core.Lease) error {
+	return nil
+}
+
+func (lr *LandRegistry) GetLease(ctx context.Context, leaseID string) (*core.Lease, error) {
+	return nil, nil
+}
+
+func (lr *LandRegistry) GetLeasesByArea(ctx context.Context, leaseID string) ([]core.Lease, error) {
+	return nil, nil
+}
+
 func (lr *LandRegistry) LockArea(ctx context.Context, ownerID int, topLeft, bottomRight core.Point) error {
 	return nil
 }

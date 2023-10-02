@@ -55,7 +55,9 @@ func (store *pgPixelStore) ErasePixel(canvasID int64, x int64, y int64) error {
 // DrawPixelRGBA implements PixelStore
 // It upserts a pixel in the database
 func (store *pgPixelStore) DrawPixelRGBA(canvasID int64, x int64, y int64, color color.RGBA) error {
-	return store.DrawPixels(canvasID, []core.Pixel{{X: x, Y: y, RGBA: color}})
+	return store.DrawPixels(canvasID, []core.Pixel{
+		core.NewPixel(x, y, color),
+	})
 }
 
 // DrawPixelRGBA implements PixelStore

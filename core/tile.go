@@ -1,37 +1,9 @@
 package core
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 )
-
-type Point struct {
-	X int64
-	Y int64
-}
-
-func (p Point) String() string {
-	return "(" + fmt.Sprint(p.X) + "," + fmt.Sprint(p.Y) + ")"
-}
-
-func NewPixel(x, y int64, c color.Color) Pixel {
-	return Pixel{X: x, Y: y, RGBA: color.RGBAModel.Convert(c).(color.RGBA)}
-}
-
-type Pixel struct {
-	X    int64
-	Y    int64
-	RGBA color.RGBA
-}
-
-func (pixel Pixel) Point() Point {
-	return Point{X: pixel.X, Y: pixel.Y}
-}
-
-func (pixel *Pixel) SetColor(c color.Color) {
-	pixel.RGBA = color.RGBAModel.Convert(c).(color.RGBA)
-}
 
 func NewTile(topLeft Point, width, height int64) Tile {
 	return Tile{TopLeft: topLeft, Width: width, Height: height, Pixels: []Pixel{}}
@@ -78,11 +50,4 @@ func (t Tile) AsImage() image.Image {
 	}
 
 	return img
-}
-
-func Abs(x int64) int64 {
-	if x < 0 {
-		return -x
-	}
-	return x
 }
