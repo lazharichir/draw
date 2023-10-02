@@ -7,6 +7,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNewTile(t *testing.T) {
+	topLeft := Point{X: 10, Y: 20}
+	width := int64(30)
+	height := int64(40)
+	expected := Tile{TopLeft: topLeft, Width: width, Height: height, Pixels: []Pixel{}}
+	actual := NewTile(topLeft, width, height)
+	assert.Equal(t, expected, actual)
+}
+
 func TestTile_GetMinX(t *testing.T) {
 	tile := Tile{
 		TopLeft: Point{X: 10, Y: 20},

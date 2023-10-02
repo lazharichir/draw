@@ -6,6 +6,11 @@ func NewArea(topLeft, bottomRight Point) Area {
 	return Area{TopLeft: topLeft, BottomRight: bottomRight}
 }
 
+func NewAreaWH(topLeft Point, width, height int64) Area {
+	bottomRight := Point{X: topLeft.X + width, Y: topLeft.Y + height}
+	return NewArea(topLeft, bottomRight)
+}
+
 type Area struct {
 	TopLeft     Point
 	BottomRight Point

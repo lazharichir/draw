@@ -13,6 +13,14 @@ func TestPoint_Translate(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+func TestPoint_DistanceTo(t *testing.T) {
+	p1 := Point{X: 0, Y: 0}
+	p2 := Point{X: 3, Y: 4}
+	expected := float64(5)
+	actual := p1.DistanceTo(p2)
+	assert.Equal(t, expected, actual)
+}
+
 func TestPoint_Add(t *testing.T) {
 	p1 := Point{X: 1, Y: 2}
 	p2 := Point{X: 3, Y: 4}

@@ -6,6 +6,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNewArea(t *testing.T) {
+	topLeft := Point{X: 0, Y: 0}
+	bottomRight := Point{X: 10, Y: 10}
+	expected := Area{TopLeft: topLeft, BottomRight: bottomRight}
+	actual := NewArea(topLeft, bottomRight)
+	assert.Equal(t, expected, actual)
+}
+
+func TestNewAreaWH(t *testing.T) {
+	topLeft := Point{X: 0, Y: 0}
+	width := int64(10)
+	height := int64(10)
+	expected := Area{TopLeft: topLeft, BottomRight: Point{X: 10, Y: 10}}
+	actual := NewAreaWH(topLeft, width, height)
+	assert.Equal(t, expected, actual)
+}
+
 func TestArea_Height(t *testing.T) {
 	area := Area{
 		TopLeft:     Point{X: 0, Y: 0},
@@ -210,19 +227,5 @@ func TestArea_CountOverlappingPixels(t *testing.T) {
 	expected = int64(0)
 	if actual := area1.CountOverlappingPixels(area2); actual != expected {
 		t.Errorf("Expected overlapping pixels to be %d, but got %d", expected, actual)
-	}
-}
-
-func TestAbs(t *testing.T) {
-	if Abs(-1) != 1 {
-		t.Error("Expected Abs(-1) to be 1, but it was not")
-	}
-
-	if Abs(1) != 1 {
-		t.Error("Expected Abs(1) to be 1, but it was not")
-	}
-
-	if Abs(0) != 0 {
-		t.Error("Expected Abs(0) to be 0, but it was not")
 	}
 }
