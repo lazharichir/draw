@@ -32,10 +32,6 @@ func (lr *LandRegistry) GetLeasesByArea(ctx context.Context, leaseID string) ([]
 	return nil, nil
 }
 
-func (lr *LandRegistry) LockArea(ctx context.Context, ownerID int, topLeft, bottomRight core.Point) error {
-	return nil
-}
-
 func (lr *LandRegistry) CanDrawPixel(ctx context.Context, drawerID int, pixel core.Pixel) (bool, error) {
 	return true, nil
 }
