@@ -244,3 +244,31 @@ func TestArea_CountOverlappingPixels(t *testing.T) {
 		t.Errorf("Expected overlapping pixels to be %d, but got %d", expected, actual)
 	}
 }
+
+func TestArea_MaybeSwapPoints(t *testing.T) {
+	// Create a new area with the top-left point greater than the bottom-right point.
+	area := Area{
+		TopLeft:     Point{X: 10, Y: 10},
+		BottomRight: Point{X: 0, Y: 0},
+	}
+
+	// Call the MaybeSwapPoints method.
+	area.MaybeSwapPoints()
+
+	// Test that the points have been swapped.
+	assert.Equal(t, Point{X: 0, Y: 0}, area.TopLeft)
+	assert.Equal(t, Point{X: 10, Y: 10}, area.BottomRight)
+
+	// Create a new area with the top-left point less than the bottom-right point.
+	area = Area{
+		TopLeft:     Point{X: 0, Y: 0},
+		BottomRight: Point{X: 10, Y: 10},
+	}
+
+	// Call the MaybeSwapPoints method.
+	area.MaybeSwapPoints()
+
+	// Test that the points have not been swapped.
+	assert.Equal(t, Point{X: 0, Y: 0}, area.TopLeft)
+	assert.Equal(t, Point{X: 10, Y: 10}, area.BottomRight)
+}

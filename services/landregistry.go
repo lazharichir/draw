@@ -167,12 +167,10 @@ func (lr *LandRegistry) GetLeasesByPoint(ctx context.Context, canvasID int64, po
 	query := `
 		SELECT id
 		FROM leases
-		WHERE 
-			canvas_id = $1 AND
-			tl_x <= $2 AND
-			br_x >= $2 AND
-			tl_y >= $3 AND
-			br_y <= $3
+		WHERE
+			canvas_id = $1
+			AND (tl_x <= $2 AND br_x > $2) 
+			AND (br_y >= $3 AND tl_y <= $3) 
 	`
 	args := []any{
 		canvasID,
@@ -206,12 +204,12 @@ func (lr *LandRegistry) GetLeasesByArea(ctx context.Context, canvasID int64, are
 		WHERE 
 			canvas_id = $1 AND
 			(
-				NOT (
-					tl_x > $2 -- Given br_x
-					OR br_x < $3 -- Given tl_x
-					OR tl_y < $4 -- Given br_y
-					OR br_y > $5 -- Given tl_y
-				)
+				(tl_x <= $2 AND br_x > $2) OR
+				(tl_x < $3 AND br_x >= $3)
+			) AND
+			(
+				(br_y >= $4 AND tl_y <= $4) OR
+				(br_y > $5 AND tl_y <= $5)
 			)
 	`
 	args := []any{
@@ -246,6 +244,12 @@ func (lr *LandRegistry) CanDrawPixel(ctx context.Context, canvasID int64, drawer
 		return false, fmt.Errorf("CanDrawPixel: %w", err)
 	}
 
+	// if no leases, then the pixel is free to draw
+	if len(leases) == 0 {
+		return true, nil
+	}
+
+	// if there are active leases, then the pixel is free to draw if the drawer owns it
 	for _, lease := range leases {
 		pixelInLease := lease.Area.ContainsPoint(pixel.Point)
 		if !pixelInLease {
@@ -256,8 +260,8 @@ func (lr *LandRegistry) CanDrawPixel(ctx context.Context, canvasID int64, drawer
 			continue
 		}
 
-		if lease.LeaseholderID != drawerID {
-			return false, fmt.Errorf("CanDrawPixel: %d cannot draw in %s", drawerID, pixel.Point.String())
+		if lease.LeaseholderID == drawerID {
+			return true, nil //fmt.Errorf("CanDrawPixel: %d cannot draw in %s", drawerID, pixel.Point.String())
 		}
 	}
 
@@ -270,6 +274,12 @@ func (lr *LandRegistry) CanDrawInArea(ctx context.Context, canvasID int64, drawe
 		return false, fmt.Errorf("CanDrawPixel: %w", err)
 	}
 
+	// if no leases, then the area is free to draw
+	if len(leases) == 0 {
+		return true, nil
+	}
+
+	// if there are active leases, then the area is free to draw if the drawer owns all of its pixels
 	now := time.Now()
 	for _, lease := range leases {
 		// Ignore the lease if it is not active at the current time.
@@ -283,10 +293,10 @@ func (lr *LandRegistry) CanDrawInArea(ctx context.Context, canvasID int64, drawe
 		}
 
 		// Not allowed if one of the relevant leases is not owned by the drawer.
-		if lease.LeaseholderID != drawerID {
-			return false, fmt.Errorf("CanDrawInArea: %d cannot draw in %s", drawerID, area.String())
+		if lease.LeaseholderID == drawerID {
+			return true, nil //fmt.Errorf("CanDrawInArea: %d cannot draw in %s", drawerID, area.String())
 		}
 	}
 
-	return true, nil
+	return false, nil
 }

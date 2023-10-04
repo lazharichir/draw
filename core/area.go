@@ -3,7 +3,9 @@ package core
 import "fmt"
 
 func NewArea(topLeft, bottomRight Point) Area {
-	return Area{TopLeft: topLeft, BottomRight: bottomRight}
+	a := Area{TopLeft: topLeft, BottomRight: bottomRight}
+	a.MaybeSwapPoints()
+	return a
 }
 
 func NewAreaWH(topLeft Point, width, height int64) Area {
@@ -14,6 +16,15 @@ func NewAreaWH(topLeft Point, width, height int64) Area {
 type Area struct {
 	TopLeft     Point
 	BottomRight Point
+}
+
+func (area *Area) MaybeSwapPoints() {
+	if area.TopLeft.X > area.BottomRight.X {
+		area.TopLeft.X, area.BottomRight.X = area.BottomRight.X, area.TopLeft.X
+	}
+	if area.TopLeft.Y > area.BottomRight.Y {
+		area.TopLeft.Y, area.BottomRight.Y = area.BottomRight.Y, area.TopLeft.Y
+	}
 }
 
 func (area Area) Equal(other Area) bool {

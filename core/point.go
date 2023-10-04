@@ -5,6 +5,10 @@ import (
 	"math"
 )
 
+func NewPoint(x, y int64) Point {
+	return Point{X: x, Y: y}
+}
+
 type Point struct {
 	X int64
 	Y int64
