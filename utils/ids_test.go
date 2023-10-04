@@ -15,5 +15,5 @@ func TestNewLeaseID(t *testing.T) {
 	assert.Equal(t, "lea_", leaseID[:4])
 
 	// Test that the lease ID has the correct length.
-	assert.GreaterOrEqual(t, 20, len(leaseID))
+	assert.GreaterOrEqual(t, 22, len(leaseID))
 }

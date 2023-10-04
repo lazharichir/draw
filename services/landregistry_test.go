@@ -29,8 +29,8 @@ func TestLandRegistry_SaveLease(t *testing.T) {
 		LeaseholderID: 123,
 		CanvasID:      456,
 		Area: core.Area{
-			TopLeft:     core.Point{X: 0, Y: 0},
-			BottomRight: core.Point{X: 100, Y: 100},
+			Min: core.Point{X: 0, Y: 0},
+			Max: core.Point{X: 100, Y: 100},
 		},
 		Status:    "active",
 		Start:     now,
@@ -210,8 +210,8 @@ func TestLandRegistry_CanDrawPixel(t *testing.T) {
 		LeaseholderID: 123,
 		CanvasID:      0,
 		Area: core.Area{
-			TopLeft:     core.Point{X: 0, Y: 0},
-			BottomRight: core.Point{X: 100, Y: 100},
+			Min: core.Point{X: 0, Y: 0},
+			Max: core.Point{X: 100, Y: 100},
 		},
 		Status:    "active",
 		Start:     now,
@@ -228,8 +228,8 @@ func TestLandRegistry_CanDrawPixel(t *testing.T) {
 		LeaseholderID: 456,
 		CanvasID:      0,
 		Area: core.Area{
-			TopLeft:     core.Point{X: 101, Y: 101},
-			BottomRight: core.Point{X: 300, Y: 300},
+			Min: core.Point{X: 101, Y: 101},
+			Max: core.Point{X: 300, Y: 300},
 		},
 		Status:    "active",
 		Start:     now,
