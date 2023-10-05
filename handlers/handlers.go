@@ -1,180 +1,97 @@
 package handlers
 
 import (
-	"encoding/json"
-	"fmt"
-	"image/color"
+	"errors"
+	"image"
+	"image/jpeg"
 	"image/png"
-	"math/rand"
 	"net/http"
-	"time"
+	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/lazharichir/draw/core"
 	"github.com/lazharichir/draw/services"
 	"github.com/lazharichir/draw/storage"
 )
 
-func New(storage storage.PixelStore, landRegistry *services.LandRegistry) *handlers {
+func New(
+	storage storage.PixelStore,
+	landRegistry *services.LandRegistry,
+	tileCache *services.TileCache,
+) *handlers {
 	return &handlers{
 		storage:      storage,
 		landRegistry: landRegistry,
+		tileCache:    tileCache,
 	}
 }
 
 type handlers struct {
 	storage      storage.PixelStore
 	landRegistry *services.LandRegistry
+	tileCache    *services.TileCache
 }
 
-func (h *handlers) PollAreaPixels(w http.ResponseWriter, r *http.Request) {
-	// fail a quarter of the time
-	if rand.Intn(4) == 0 {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	canvasID := chiURLQueryInt64(r, "cid")
-	from, err := time.Parse(time.RFC3339, r.URL.Query().Get("from"))
+func strToInt64(str string) int64 {
+	val, err := strconv.ParseInt(str, 10, 64)
 	if err != nil {
-		fmt.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("invalid from date"))
-		return
+		return 0
+	}
+	return val
+}
+
+func chiURLQueryInt64(r *http.Request, key string) int64 {
+	str := r.URL.Query().Get(key)
+	if len(str) == 0 {
+		return -1
+	}
+	return strToInt64(str)
+}
+
+func chiURLParamInt64(r *http.Request, key string) int64 {
+	str := chi.URLParam(r, key)
+	if len(str) == 0 {
+		return -1
+	}
+	return strToInt64(str)
+}
+
+func buildTileFromImage(x, y int64, img image.Image) core.Tile {
+	width := img.Bounds().Max.X
+	height := img.Bounds().Max.Y
+	tile := core.NewTile(core.Point{X: x, Y: y}, int64(width), int64(height))
+
+	for i := int64(0); i < int64(width); i++ {
+		for j := int64(0); j < int64(height); j++ {
+			imagePx := img.At(int(i), int(j))
+			tile.NewPixel(x+i, y+j, imagePx)
+		}
 	}
 
-	tlX := chiURLQueryInt64(r, "tlx")
-	tlY := chiURLQueryInt64(r, "tly")
-	brX := chiURLQueryInt64(r, "brx")
-	brY := chiURLQueryInt64(r, "bry")
-	topLeft := core.Point{X: tlX, Y: tlY}
-	bottomRight := core.Point{X: brX, Y: brY}
+	return tile
+}
 
-	pixels, err := h.storage.GetLatestPixelsForArea(canvasID, topLeft, bottomRight, from)
+func loadImageFromURL(URL string) (image.Image, error) {
+	//Get the response bytes from the url
+	response, err := http.Get(URL)
 	if err != nil {
-		fmt.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != 200 {
+		return nil, errors.New("received non 200 response code")
 	}
 
-	fmt.Println("GET /poll", len(pixels), "#pixels", from, topLeft, bottomRight)
-
-	// send empty json object
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	by, _ := json.Marshal(pixels)
-	w.Write(by)
-}
-
-func (h *handlers) DrawImage(w http.ResponseWriter, r *http.Request) {
-	// get a tile (e.g., http://localhost:1001/image?cid=0&x=-1000&y=-1000&src=https://freshman.tech/images/dp-illustration.png)
-
-	canvasID := chiURLQueryInt64(r, "cid")
-	x := chiURLQueryInt64(r, "x")
-	y := chiURLQueryInt64(r, "y")
-	src := r.URL.Query().Get("src")
-	fmt.Println("GET /image", canvasID, x, y, src)
-
-	img, err := loadImageFromURL(src)
-	if err != nil {
-		fmt.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+	switch response.Header.Get("Content-Type") {
+	case "image/png":
+		return png.Decode(response.Body)
+	case "image/jpeg":
+		return jpeg.Decode(response.Body)
+	case "image/jpg":
+		return jpeg.Decode(response.Body)
+	default:
+		return nil, errors.New("unsupported content type (only jpg and png are supported)")
 	}
 
-	fmt.Println("image size", img.Bounds().Max.X, img.Bounds().Max.Y)
-
-	// get the pixels from the image
-	tile := buildTileFromImage(int64(x), int64(y), img)
-	if err := h.storage.DrawPixels(canvasID, tile.Pixels); err != nil {
-		fmt.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	// write the image to the response
-	w.Header().Set("Content-Type", "image/png")
-	encoder := png.Encoder{}
-	encoder.CompressionLevel = png.NoCompression
-	if err := encoder.Encode(w, img); err != nil {
-		fmt.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-}
-
-func (h *handlers) ErasePixel(w http.ResponseWriter, r *http.Request) {
-	canvasID := chiURLParamInt64(r, "canvasID")
-	x := chiURLParamInt64(r, "x")
-	y := chiURLParamInt64(r, "y")
-
-	if err := h.storage.ErasePixel(canvasID, x, y); err != nil {
-		fmt.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-}
-
-func (h *handlers) DrawPixel(w http.ResponseWriter, r *http.Request) {
-	canvasID := chiURLParamInt64(r, "canvasID")
-	x := chiURLParamInt64(r, "x")
-	y := chiURLParamInt64(r, "y")
-	red := chiURLParamInt64(r, "r")
-	green := chiURLParamInt64(r, "g")
-	blue := chiURLParamInt64(r, "b")
-	alpha := chiURLParamInt64(r, "a")
-	color := color.RGBA{
-		R: uint8(red),
-		G: uint8(green),
-		B: uint8(blue),
-		A: uint8(alpha),
-	}
-
-	pixel := core.NewPixel(x, y, color)
-
-	// check if the pixel can be drawn
-	if ok, err := h.landRegistry.CanDrawPixel(r.Context(), 0, 0, pixel); err != nil {
-		fmt.Println(err)
-		w.Write([]byte(err.Error()))
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	} else if !ok {
-		err := services.ErrCannotDrawInArea(0, pixel.Point, pixel.Point)
-		fmt.Println(err)
-		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte(err.Error()))
-		return
-	}
-
-	if err := h.storage.DrawPixels(canvasID, []core.Pixel{pixel}); err != nil {
-		fmt.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-}
-
-func (h *handlers) GetTileImage(w http.ResponseWriter, r *http.Request) {
-	canvasID := int64(0)
-	x := chiURLParamInt64(r, "x")
-	y := chiURLParamInt64(r, "y")
-	d := chiURLParamInt64(r, "d")
-
-	pixels, err := h.storage.GetPixelsFromTopLeft(canvasID, x, y, d)
-	if err != nil {
-		fmt.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	newTile := core.NewTile(core.Point{X: x, Y: y}, d, d)
-	newTile.AddPixels(pixels...)
-
-	img := newTile.AsImage()
-
-	// render the tile as a png image
-	w.Header().Set("Content-Type", "image/png")
-	encoder := png.Encoder{}
-	encoder.CompressionLevel = png.NoCompression
-	if err := encoder.Encode(w, img); err != nil {
-		fmt.Println(err)
-	}
 }
