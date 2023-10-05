@@ -2,9 +2,33 @@ package core
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestGetMinuteRangeForTime(t *testing.T) {
+	{
+		from, to := GetMinuteRangeForTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))
+		assert.Equal(t, time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), from)
+		assert.Equal(t, time.Date(2020, 1, 1, 0, 1, 0, 0, time.UTC), to)
+	}
+	{
+		from, to := GetMinuteRangeForTime(time.Date(2020, 1, 1, 0, 0, 30, 0, time.UTC))
+		assert.Equal(t, time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), from)
+		assert.Equal(t, time.Date(2020, 1, 1, 0, 1, 0, 0, time.UTC), to)
+	}
+	{
+		from, to := GetMinuteRangeForTime(time.Date(2020, 1, 1, 0, 1, 0, 0, time.UTC))
+		assert.Equal(t, time.Date(2020, 1, 1, 0, 1, 0, 0, time.UTC), from)
+		assert.Equal(t, time.Date(2020, 1, 1, 0, 2, 0, 0, time.UTC), to)
+	}
+	{
+		from, to := GetMinuteRangeForTime(time.Date(2020, 1, 1, 0, 1, 30, 0, time.UTC))
+		assert.Equal(t, time.Date(2020, 1, 1, 0, 1, 0, 0, time.UTC), from)
+		assert.Equal(t, time.Date(2020, 1, 1, 0, 2, 0, 0, time.UTC), to)
+	}
+}
 
 func TestAbs(t *testing.T) {
 	testCases := []struct {

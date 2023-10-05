@@ -1,5 +1,13 @@
 package core
 
+import "time"
+
+func GetMinuteRangeForTime(t time.Time) (time.Time, time.Time) {
+	from := t.Truncate(time.Minute)
+	to := from.Add(time.Minute)
+	return from, to
+}
+
 func Abs(x int64) int64 {
 	if x < 0 {
 		return -x

@@ -10,7 +10,6 @@ import (
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/lazharichir/draw/core"
 	_ "github.com/lib/pq"
-	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
 )
 
@@ -25,6 +24,7 @@ type PixelStore interface {
 	SetLastChangedForAreas(ctx context.Context, canvasID int64, side int64, areas ...core.Area) error
 	SetLastChangedForPoints(ctx context.Context, canvasID int64, side int64, points ...core.Point) error
 	DeleteLastChangedForAreas(ctx context.Context, canvasID int64, side int64, areas ...core.Area) error
+	FindRecentlyChangedAreasBetweenDates(ctx context.Context, from, to time.Time) (map[int64][]core.Area, error)
 }
 
 type pgPixelStore struct {
@@ -201,7 +201,7 @@ func mapTilechangesToAreas(items []tilechange) []core.Area {
 	return areas
 }
 
-func (store *pgPixelStore) FindLastChangedBetween(ctx context.Context, from, to time.Time) ([]core.Area, error) {
+func (store *pgPixelStore) FindRecentlyChangedAreasBetweenDates(ctx context.Context, from, to time.Time) (map[int64][]core.Area, error) {
 	// ensure from < to
 	if from.After(to) {
 		from, to = to, from
@@ -229,18 +229,23 @@ func (store *pgPixelStore) FindLastChangedBetween(ctx context.Context, from, to 
 		return nil, err
 	}
 
-	var items []tilechange
+	areas := map[int64][]core.Area{}
 	for rows.Next() {
 		var item tilechange
 		err := rows.Scan(&item.CanvasID, &item.X, &item.Y, &item.Side, &item.LastChanged)
 		if err != nil {
 			return nil, err
 		}
-		items = append(items, item)
+		area := item.Area()
+
+		if _, ok := areas[item.CanvasID]; !ok {
+			areas[item.CanvasID] = []core.Area{}
+		}
+
+		areas[item.CanvasID] = append(areas[item.CanvasID], area)
 	}
 
-	areas := mapTilechangesToAreas(items)
-	slices.SortFunc(areas, core.SortAreasFn)
+	// slices.SortFunc(areas, core.SortAreasFn)
 	return areas, nil
 }
 
