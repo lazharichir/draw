@@ -16,6 +16,12 @@ type Tile struct {
 	Pixels  []Pixel
 }
 
+func (t Tile) Area() Area {
+	ptA := t.TopLeft
+	ptB := Pt(t.GetMaxX(), t.GetMaxY())
+	return NewArea(ptA, ptB)
+}
+
 func (t Tile) GetMinX() int64 {
 	return t.TopLeft.X
 }

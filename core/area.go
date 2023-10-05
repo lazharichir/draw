@@ -12,6 +12,11 @@ func NewAreaWH(min Point, width, height int64) Area {
 	return NewArea(min, max)
 }
 
+func NewAreaSquare(min Point, side int64) Area {
+	max := Pt(min.X+side, min.Y+side)
+	return NewArea(min, max)
+}
+
 type Area struct {
 	Min Point
 	Max Point
@@ -36,11 +41,11 @@ func (area Area) Equal(other Area) bool {
 }
 
 func (area Area) Height() int64 {
-	return Abs(area.Min.Y-area.Max.Y) + 1
+	return Abs(area.Min.Y - area.Max.Y)
 }
 
 func (area Area) Width() int64 {
-	return Abs(area.Min.X-area.Max.X) + 1
+	return Abs(area.Min.X - area.Max.X)
 }
 
 func (area Area) IsLandscape() bool {
@@ -81,8 +86,18 @@ func (r Area) Intersect(s Area) (Area, bool) {
 	return r, r.Min.X <= r.Max.X && r.Min.Y <= r.Max.Y
 }
 
+func (area Area) Points() []Point {
+	points := []Point{}
+	for x := area.Min.X; x <= area.Max.X; x++ {
+		for y := area.Min.Y; y <= area.Max.Y; y++ {
+			points = append(points, Pt(x, y))
+		}
+	}
+	return points
+}
+
 func (area Area) Surface() int64 {
-	return area.Height() * area.Width()
+	return int64(len(area.Points()))
 }
 
 func (area Area) CountOverlappingPixels(other Area) int64 {
@@ -91,22 +106,26 @@ func (area Area) CountOverlappingPixels(other Area) int64 {
 		return 0
 	}
 	return is.Surface()
-
-	// // Calculate the overlapping area
-	// overlap := NewArea(
-	// 	NewPoint(Max(area.Min.X, other.Min.X), Max(area.Min.Y, other.Min.Y)),
-	// 	NewPoint(Min(area.Max.X, other.Max.X), Min(area.Max.Y, other.Max.Y)),
-	// )
-
-	// // If there is no overlap, return 0
-	// if overlap.Min.X >= overlap.Max.X || overlap.Min.Y >= overlap.Max.Y {
-	// 	return 0
-	// }
-
-	// // Return the overlapping area's surface size
-	// return overlap.Surface()
 }
 
 func (area Area) String() string {
-	return fmt.Sprintf("Area[Min: %s, Max: %s, Height: %d, Width: %d]", area.Min, area.Max, area.Height(), area.Width())
+	return fmt.Sprintf("Area[Min: %s, Max: %s, Height: %d, Width: %d, Points: %d]", area.Min, area.Max, area.Height(), area.Width(), area.Surface())
+}
+
+// SortAreasFn sorts the slice so it is deterministic.
+// Sort by Min X, then Min Y, then Max X, then Max Y.
+func SortAreasFn(a, b Area) bool {
+	if a.Min.X < b.Min.X {
+		return true
+	}
+	if a.Min.Y < b.Min.Y {
+		return true
+	}
+	if a.Max.X < b.Max.X {
+		return true
+	}
+	if a.Max.Y < b.Max.Y {
+		return true
+	}
+	return false
 }

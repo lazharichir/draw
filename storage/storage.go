@@ -1,13 +1,16 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"image/color"
 	"time"
 
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/lazharichir/draw/core"
 	_ "github.com/lib/pq"
+	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
 )
 
@@ -17,6 +20,11 @@ type PixelStore interface {
 	DrawPixelRGBA(canvasID, x, y int64, color color.RGBA) error
 	DrawPixels(canvasID int64, pixels []core.Pixel) error
 	ErasePixel(canvasID, x, y int64) error
+
+	//
+	SetLastChangedForAreas(ctx context.Context, canvasID int64, side int64, areas ...core.Area) error
+	SetLastChangedForPoints(ctx context.Context, canvasID int64, side int64, points ...core.Point) error
+	DeleteLastChangedForAreas(ctx context.Context, canvasID int64, side int64, areas ...core.Area) error
 }
 
 type pgPixelStore struct {
@@ -168,6 +176,126 @@ func (store *pgPixelStore) GetPixelsFromTopLeft(canvasID int64, tlX int64, tlY i
 	}
 
 	return pixels, nil
+}
+
+// GetPixels implements PixelStore
+type tilechange struct {
+	CanvasID    int64
+	X           int64
+	Y           int64
+	Side        int64
+	LastChanged time.Time
+}
+
+func (t tilechange) Area() core.Area {
+	min := core.Pt(t.X, t.Y)
+	max := core.Pt(t.X+t.Side, t.Y+t.Side)
+	return core.NewArea(min, max)
+}
+
+func mapTilechangesToAreas(items []tilechange) []core.Area {
+	var areas []core.Area
+	for _, item := range items {
+		areas = append(areas, item.Area())
+	}
+	return areas
+}
+
+func (store *pgPixelStore) FindLastChangedBetween(ctx context.Context, from, to time.Time) ([]core.Area, error) {
+	// ensure from < to
+	if from.After(to) {
+		from, to = to, from
+	}
+
+	// SELECT * FROM "tilechanges" WHERE ("last_changed" BETWEEN '2023-10-05 16:14:00+07' AND '2023-10-05 16:14:59+07');
+
+	sb := sqlbuilder.PostgreSQL.NewSelectBuilder()
+	sb.Select(
+		"canvas_id",
+		"x",
+		"y",
+		"side",
+		"last_changed",
+	)
+	sb.From("tilechanges")
+	sb.Where(sb.Between("last_changed", from, to))
+
+	query, args := sb.Build()
+	fmt.Println(`query`, query)
+	fmt.Println(`args`, args)
+
+	rows, err := store.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	var items []tilechange
+	for rows.Next() {
+		var item tilechange
+		err := rows.Scan(&item.CanvasID, &item.X, &item.Y, &item.Side, &item.LastChanged)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+
+	areas := mapTilechangesToAreas(items)
+	slices.SortFunc(areas, core.SortAreasFn)
+	return areas, nil
+}
+
+func (store *pgPixelStore) DeleteLastChangedForAreas(ctx context.Context, canvasID int64, side int64, areas ...core.Area) error {
+	db := sqlbuilder.PostgreSQL.NewDeleteBuilder()
+	db.DeleteFrom("tilechanges")
+	db.Where(
+		db.And(
+			db.Equal("canvas_id", canvasID),
+			db.Equal("side", side),
+		),
+	)
+
+	for _, area := range areas {
+		db.Or(
+			db.And(
+				db.Between("x", area.Min.X, area.Max.X),
+				db.Between("y", area.Min.Y, area.Max.Y),
+			),
+		)
+	}
+
+	query, args := db.Build()
+	fmt.Println(`query`, query)
+	fmt.Println(`args`, args)
+
+	_, err := store.db.ExecContext(ctx, query, args...)
+	return err
+}
+
+func (store *pgPixelStore) SetLastChangedForAreas(ctx context.Context, canvasID int64, side int64, areas ...core.Area) error {
+	ib := sqlbuilder.PostgreSQL.NewInsertBuilder()
+	ib.InsertInto("tilechanges")
+	ib.Cols("canvas_id", "x", "y", "side", "last_changed")
+
+	for _, area := range areas {
+		ib.Values(canvasID, area.Min.X, area.Min.Y, side, "NOW()")
+	}
+
+	ib.SQL(`
+		ON CONFLICT (canvas_id, x, y, side) DO UPDATE SET 
+			last_changed = EXCLUDED.last_changed
+	`)
+
+	query, args := ib.Build()
+	_, err := store.db.ExecContext(ctx, query, args...)
+	return err
+}
+
+func (store *pgPixelStore) SetLastChangedForPoints(ctx context.Context, canvasID int64, side int64, points ...core.Point) error {
+	changedAreas := core.GetTileAreasFromPoints(side, points...)
+	if len(changedAreas) == 0 {
+		return nil
+	}
+	return store.SetLastChangedForAreas(ctx, canvasID, side, changedAreas...)
 }
 
 func NewPG() *sql.DB {

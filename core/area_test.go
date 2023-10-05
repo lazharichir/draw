@@ -4,7 +4,27 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/exp/slices"
 )
+
+func TestNewAreaSquare(t *testing.T) {
+	{
+		// Test that a square area is created correctly.
+		min := Pt(0, 0)
+		side := int64(1024)
+		expected := NewArea(Pt(0, 0), Pt(1024, 1024))
+		actual := NewAreaSquare(min, side)
+		assert.Equal(t, expected, actual)
+	}
+	{
+		// Test that a square area is created correctly.
+		min := Pt(-1024, 0)
+		side := int64(1024)
+		expected := NewArea(Pt(-1024, 0), Pt(0, 1024))
+		actual := NewAreaSquare(min, side)
+		assert.Equal(t, expected, actual)
+	}
+}
 
 func TestNewArea(t *testing.T) {
 	topLeft := Point{X: 0, Y: 0}
@@ -28,7 +48,7 @@ func TestArea_Height(t *testing.T) {
 		Min: Point{X: 0, Y: 0},
 		Max: Point{X: 0, Y: 10},
 	}
-	expected := int64(11)
+	expected := int64(10)
 	if actual := area.Height(); actual != expected {
 		t.Errorf("Expected height to be %d, but got %d", expected, actual)
 	}
@@ -39,7 +59,7 @@ func TestArea_Width(t *testing.T) {
 		Min: Point{X: 0, Y: 0},
 		Max: Point{X: 10, Y: 0},
 	}
-	expected := int64(11)
+	expected := int64(10)
 	if actual := area.Width(); actual != expected {
 		t.Errorf("Expected width to be %d, but got %d", expected, actual)
 	}
@@ -149,15 +169,71 @@ func TestArea_IntersectsArea(t *testing.T) {
 	}
 }
 
+func TestAreaPoints(t *testing.T) {
+	{
+		// Test that an empty area returns an empty slice of points.
+		area := Area{}
+		expected := []Point{
+			Pt(0, 0),
+		}
+		actual := area.Points()
+		assert.Equal(t, expected, actual)
+	}
+	{
+		area := NewArea(Pt(0, 0), Pt(3, 3))
+		expected := []Point{
+			Pt(0, 0),
+			Pt(0, 1),
+			Pt(0, 2),
+			Pt(0, 3),
+			Pt(1, 0),
+			Pt(1, 1),
+			Pt(1, 2),
+			Pt(1, 3),
+			Pt(2, 0),
+			Pt(2, 1),
+			Pt(2, 2),
+			Pt(2, 3),
+			Pt(3, 0),
+			Pt(3, 1),
+			Pt(3, 2),
+			Pt(3, 3),
+		}
+		actual := area.Points()
+		assert.Equal(t, expected, actual)
+	}
+	{
+		// one-column area
+		area := NewArea(Pt(0, 0), Pt(0, 3))
+		expected := []Point{
+			Pt(0, 0),
+			Pt(0, 1),
+			Pt(0, 2),
+			Pt(0, 3),
+		}
+		actual := area.Points()
+		assert.Equal(t, expected, actual)
+	}
+	{
+		// one-row area
+		area := NewArea(Pt(0, 0), Pt(2, 0))
+		expected := []Point{
+			Pt(0, 0),
+			Pt(1, 0),
+			Pt(2, 0),
+		}
+		actual := area.Points()
+		assert.Equal(t, expected, actual)
+	}
+}
+
 func TestArea_Surface(t *testing.T) {
 	area := Area{
 		Min: Point{X: 0, Y: 0},
 		Max: Point{X: 10, Y: 10},
 	}
 	expected := int64(121)
-	if actual := area.Surface(); actual != expected {
-		t.Errorf("Expected surface to be %d, but got %d", expected, actual)
-	}
+	assert.Equal(t, expected, area.Surface())
 }
 
 func TestArea_SurfaceOne(t *testing.T) {
@@ -166,9 +242,7 @@ func TestArea_SurfaceOne(t *testing.T) {
 		Max: Point{X: 3, Y: 3},
 	}
 	expected := int64(1)
-	if actual := area.Surface(); actual != expected {
-		t.Errorf("Expected surface to be %d, but got %d", expected, actual)
-	}
+	assert.Equal(t, expected, area.Surface())
 }
 
 func TestArea_SurfaceTwo(t *testing.T) {
@@ -177,18 +251,26 @@ func TestArea_SurfaceTwo(t *testing.T) {
 		Max: Point{X: 3, Y: 4},
 	}
 	expected := int64(2)
-	if actual := area.Surface(); actual != expected {
-		t.Errorf("Expected surface to be %d, but got %d", expected, actual)
-	}
+	assert.Equal(t, expected, area.Surface())
 }
 
 func TestArea_String(t *testing.T) {
-	area := Area{
-		Min: Point{X: 0, Y: 0},
-		Max: Point{X: 10, Y: 10},
+	{
+		area := Area{
+			Min: Point{X: 0, Y: 0},
+			Max: Point{X: 10, Y: 10},
+		}
+		expected := "Area[Min: (0,0), Max: (10,10), Height: 10, Width: 10, Points: 121]"
+		assert.Equal(t, expected, area.String())
 	}
-	expected := "Area[Min: (0,0), Max: (10,10), Height: 11, Width: 11]"
-	assert.Equal(t, expected, area.String())
+	{
+		area := Area{
+			Min: Point{X: 0, Y: 0},
+			Max: Point{X: 0, Y: 0},
+		}
+		expected := "Area[Min: (0,0), Max: (0,0), Height: 0, Width: 0, Points: 1]"
+		assert.Equal(t, expected, area.String())
+	}
 }
 
 func TestArea_Equal(t *testing.T) {
@@ -263,4 +345,41 @@ func TestArea_MaybeSwapPoints(t *testing.T) {
 	// Test that the points have not been swapped.
 	assert.Equal(t, Point{X: 0, Y: 0}, area.Min)
 	assert.Equal(t, Point{X: 10, Y: 10}, area.Max)
+}
+
+func TestSortAreasFn(t *testing.T) {
+	{
+		// Test that an empty slice is sorted correctly.
+		areas := []Area{}
+		expected := []Area{}
+		slices.SortFunc(areas, SortAreasFn)
+		assert.Equal(t, expected, areas)
+	}
+
+	{
+		// Test that two simple slices are the same once both are sorted.
+		left := []Area{NewArea(Pt(0, 0), Pt(9999, 2))}
+		right := []Area{NewArea(Pt(9999, 2), Pt(0, 0))}
+		slices.SortFunc(left, SortAreasFn)
+		slices.SortFunc(right, SortAreasFn)
+		assert.Equal(t, right, left)
+	}
+
+	{
+		// Test that a slice with multiple elements is sorted correctly.
+		areas3 := []Area{
+			NewArea(Pt(1024, 1024), Pt(2047, 2047)),
+			NewArea(Pt(1024, 0), Pt(2047, 1023)),
+			NewArea(Pt(0, 1024), Pt(1023, 2047)),
+			NewArea(Pt(0, 0), Pt(1023, 1023)),
+		}
+		expected3 := []Area{
+			NewArea(Pt(0, 0), Pt(1023, 1023)),
+			NewArea(Pt(0, 1024), Pt(1023, 2047)),
+			NewArea(Pt(1024, 0), Pt(2047, 1023)),
+			NewArea(Pt(1024, 1024), Pt(2047, 2047)),
+		}
+		slices.SortFunc(areas3, SortAreasFn)
+		assert.Equal(t, expected3, areas3)
+	}
 }

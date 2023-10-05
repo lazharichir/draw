@@ -57,8 +57,9 @@ func main() {
 	db := storage.NewPG()
 	storage := storage.NewPGPixelStore(db, nil)
 	landRegistry := services.NewLandRegistry(db)
+	tileCache := services.NewTileCache(storage)
 
-	handlers := handlers.New(storage, landRegistry)
+	handlers := handlers.New(storage, landRegistry, tileCache)
 
 	r := chi.NewRouter()
 
