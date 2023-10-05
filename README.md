@@ -1,15 +1,17 @@
 # TODO
 
 ## Implement a tile caching mechanism
+- [X] Create a function that takes a point and returns the tile it belongs to
+- [ ] Create a new table that stores Tile <> Changed timestamp for quick lookup
 - [ ] Create a function that detects changed tiles since time T
 - [ ] Create a function that generates updated cached tiles
 - [ ] Create an endpoint that update tiles every minute
 
 ## Implement the `LandRegistry`
-- [ ] Define the initial `Store` interface:
-  - [ ] `saveLease`
-  - [ ] `getLeasesByPixel`
-  - [ ] `getLeasesByArea`
+- [X] Define the initial interface:
+  - [X] `saveLease`
+  - [X] `getLeasesByPixel`
+  - [X] `getLeasesByArea`
 
 ## Miscellaneaous
 

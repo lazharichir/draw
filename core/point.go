@@ -5,6 +5,10 @@ import (
 	"math"
 )
 
+func Pt(x, y int64) Point {
+	return NewPoint(x, y)
+}
+
 func NewPoint(x, y int64) Point {
 	return Point{X: x, Y: y}
 }
