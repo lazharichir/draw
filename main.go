@@ -85,6 +85,7 @@ func main() {
 		lastBottomRight = core.Point{X: chiURLQueryInt64(r, "brx"), Y: chiURLQueryInt64(r, "bry")}
 		handlers.PollAreaPixels(w, r)
 	})
+	r.Get("/precache", handlers.PrecacheChangedTiles)
 
 	ticker := time.NewTicker(900 * time.Millisecond)
 	quit := make(chan struct{})
