@@ -60,7 +60,7 @@ func (h *handlers) PrecacheArea(ctx context.Context, canvasID int64, area core.A
 	fmt.Println(`------- with`, len(pixels), `pixels`)
 
 	// create a new tile and add the pixels to it
-	newTile := core.NewTile(core.Pt(x, y), d, d)
+	newTile := core.NewTilePWH(core.Pt(x, y), d, d)
 	newTile.AddPixels(pixels...)
 
 	// build the image

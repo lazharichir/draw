@@ -5,37 +5,43 @@ import (
 	"image/color"
 )
 
-func NewTile(topLeft Point, width, height int64) Tile {
-	return Tile{TopLeft: topLeft, Width: width, Height: height, Pixels: []Pixel{}}
+func NewTile(area Area) Tile {
+	return Tile{Area: area, Pixels: []Pixel{}}
+}
+
+func NewTilePWH(pt Point, w, h int64) Tile {
+	area := NewAreaWH(pt, w, h)
+	return Tile{Area: area, Pixels: []Pixel{}}
 }
 
 type Tile struct {
-	TopLeft Point
-	Width   int64
-	Height  int64
-	Pixels  []Pixel
+	Area
+	// TopLeft Point
+	// Width   int64
+	// Height  int64
+	Pixels []Pixel
 }
 
-func (t Tile) Area() Area {
-	ptA := t.TopLeft
-	ptB := Pt(t.GetMaxX(), t.GetMaxY())
-	return NewArea(ptA, ptB)
-}
+// func (t Tile) Area() Area {
+// 	ptA := t.TopLeft
+// 	ptB := Pt(t.GetMaxX(), t.GetMaxY())
+// 	return NewArea(ptA, ptB)
+// }
 
 func (t Tile) GetMinX() int64 {
-	return t.TopLeft.X
+	return t.Min.X
 }
 
 func (t Tile) GetMaxX() int64 {
-	return t.TopLeft.X + t.Width
+	return t.Max.X
 }
 
 func (t Tile) GetMinY() int64 {
-	return t.TopLeft.Y
+	return t.Min.Y
 }
 
 func (t Tile) GetMaxY() int64 {
-	return t.TopLeft.Y + t.Height
+	return t.Max.Y
 }
 
 func (t *Tile) NewPixel(x, y int64, c color.Color) {
@@ -47,7 +53,7 @@ func (t *Tile) AddPixels(pixels ...Pixel) {
 }
 
 func (t Tile) AsImage() image.Image {
-	img := image.NewRGBA(image.Rect(0, 0, int(t.Width), int(t.Height)))
+	img := image.NewRGBA(image.Rect(0, 0, int(t.Width()), int(t.Height())))
 
 	for _, pixel := range t.Pixels {
 		localX := Abs(t.GetMinX() - pixel.X)

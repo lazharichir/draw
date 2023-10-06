@@ -59,7 +59,7 @@ func chiURLParamInt64(r *http.Request, key string) int64 {
 func buildTileFromImage(x, y int64, img image.Image) core.Tile {
 	width := img.Bounds().Max.X
 	height := img.Bounds().Max.Y
-	tile := core.NewTile(core.Point{X: x, Y: y}, int64(width), int64(height))
+	tile := core.NewTilePWH(core.Point{X: x, Y: y}, int64(width), int64(height))
 
 	for i := int64(0); i < int64(width); i++ {
 		for j := int64(0); j < int64(height); j++ {

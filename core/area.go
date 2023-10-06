@@ -56,6 +56,10 @@ func (area Area) IsPortrait() bool {
 	return area.Height() > area.Width()
 }
 
+func (area Area) IsSquare() bool {
+	return area.Height() == area.Width()
+}
+
 func (area Area) ContainsPoint(p Point) bool {
 	return p.X >= area.Min.X && p.X <= area.Max.X && p.Y >= area.Min.Y && p.Y <= area.Max.Y
 }
