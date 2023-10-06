@@ -25,7 +25,7 @@ func (cache *TileCache) PutTile(ctx context.Context, canvasID int64, tile core.T
 	side := tile.Width
 	_, _, _ = x, y, side
 
-	if tile.Width != tile.Height {
+	if !tile.IsSquare() {
 		return errors.New("tile is not a square")
 	}
 

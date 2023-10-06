@@ -50,7 +50,7 @@ func (h *handlers) GetTileImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create a new tile and add the pixels to it
-	newTile := core.NewTile(core.Pt(x, y), d, d)
+	newTile := core.NewTilePWH(core.Pt(x, y), d, d)
 	newTile.AddPixels(pixels...)
 
 	// render the tile as a png image
