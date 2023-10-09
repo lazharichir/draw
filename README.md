@@ -6,6 +6,7 @@
 - [X] Create a function that detects changed tiles since time T
 - [X] Create a function that generates updated cached tiles
 - [X] Create an endpoint that update tiles every minute
+- [ ] Implement the TileCache
 
 ## Implement the `LandRegistry`
 - [X] Define the initial interface:

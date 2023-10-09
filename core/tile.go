@@ -16,17 +16,8 @@ func NewTilePWH(pt Point, w, h int64) Tile {
 
 type Tile struct {
 	Area
-	// TopLeft Point
-	// Width   int64
-	// Height  int64
 	Pixels []Pixel
 }
-
-// func (t Tile) Area() Area {
-// 	ptA := t.TopLeft
-// 	ptB := Pt(t.GetMaxX(), t.GetMaxY())
-// 	return NewArea(ptA, ptB)
-// }
 
 func (t Tile) GetMinX() int64 {
 	return t.Min.X

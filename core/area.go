@@ -1,6 +1,9 @@
 package core
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 func NewArea(min, max Point) Area {
 	a := Area{Min: min, Max: max}
@@ -132,4 +135,12 @@ func SortAreasFn(a, b Area) bool {
 		return true
 	}
 	return false
+}
+
+func (area Area) ObjectName() string {
+	return fmt.Sprintf("%d-%d_%d-%d", area.Min.X, area.Min.Y, area.Width(), area.Height())
+}
+
+func (area Area) ObjectNameWithExt(ext string) string {
+	return fmt.Sprintf("%s.%s", area.ObjectName(), strings.Trim(ext, ". "))
 }

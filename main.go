@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
+
+	// godotenv
+	_ "github.com/joho/godotenv/autoload"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -13,6 +17,7 @@ import (
 	"github.com/lazharichir/draw/handlers"
 	"github.com/lazharichir/draw/services"
 	"github.com/lazharichir/draw/storage"
+	"github.com/lazharichir/draw/utils"
 )
 
 // Gzip Compression
@@ -46,7 +51,8 @@ func main() {
 	db := storage.NewPG()
 	storage := storage.NewPGPixelStore(db, nil)
 	landRegistry := services.NewLandRegistry(db)
-	tileCache := services.NewTileCache(storage)
+	s3 := utils.MustNewS3Client(os.Getenv("R2_AWS_ACCOUNT_ID"), os.Getenv("R2_AWS_ACCESS_KEY_ID"), os.Getenv("R2_AWS_ACCESS_KEY_SECRET"))
+	tileCache := services.NewTileCache(s3, os.Getenv("R2_TILECACHE_BUCKET_NAME"))
 
 	handlers := handlers.New(storage, landRegistry, tileCache)
 

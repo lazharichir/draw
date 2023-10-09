@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"bytes"
 	"image"
+	"image/png"
 
 	"golang.org/x/image/draw"
 )
@@ -25,4 +27,12 @@ func ResizeImage(src image.Image, newWidth, newHeight int64) (image.Image, error
 
 	// done
 	return dst, nil
+}
+
+func ConvertImageToBytes(img image.Image) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	if err := png.Encode(buf, img); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
