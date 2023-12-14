@@ -74,7 +74,6 @@ func main() {
 	r.Put("/pixel/{canvasID}/{x}/{y}/{r}/{g}/{b}/{a}", handlers.DrawPixel)
 	r.Delete("/pixel/{canvasID}/{x}/{y}", handlers.ErasePixel)
 	r.Get("/image", handlers.DrawImage)
-	r.Get("/ws", handlers.TheWS)
 	r.Get("/poll", handlers.PollAreaPixels)
 	r.Get("/precache", handlers.PrecacheChangedTiles)
 
