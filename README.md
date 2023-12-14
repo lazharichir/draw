@@ -1,4 +1,5 @@
 **Backend:** `Golang`, `PostgreSQL`, `chi`, `go-sqlbuilder` for quick query building and prototyping, R2 for tile caching
+
 **Frontend:** `TypeScript`, `React`, `Pixi.JS`
 
 # TODO
