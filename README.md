@@ -1,3 +1,6 @@
+**Backend:** `Golang`, `PostgreSQL`, `chi`, `go-sqlbuilder` for quick query building and prototyping, R2 for tile caching
+**Frontend:** `TypeScript`, `React`, `Pixi.JS`
+
 # TODO
 
 ## Implement a tile caching mechanism
@@ -18,3 +21,7 @@
 
 - [ ] Handle bulk pixels on the frontend when polling (e.g., after an image was added)
 - [ ] Fix the flickering grid on the frontend
+
+## Implement Auth/IAM/Users
+
+- [ ] Auth PoC
